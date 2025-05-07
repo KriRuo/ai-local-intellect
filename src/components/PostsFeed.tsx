@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { PostCard } from "@/components/PostCard";
 import { useAppStore } from "@/lib/store";
 import { fetchPosts } from "@/lib/api";
-import { Button } from "@/components/ui/card";
+import { Button } from "@/components/ui/button"; // Fixed import from button.tsx instead of card.tsx
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 

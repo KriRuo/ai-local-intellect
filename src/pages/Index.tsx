@@ -3,7 +3,7 @@ import { Layout } from "@/components/Layout";
 import { PostsFeed } from "@/components/PostsFeed";
 import { ChatBox } from "@/components/ChatBox";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Tab, TabContent, TabList, TabTrigger, Tabs } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { MessageSquare, Newspaper } from "lucide-react";
 
@@ -20,22 +20,22 @@ const Index = () => {
           onValueChange={setActiveTab}
           value={activeTab}
         >
-          <TabList className="grid grid-cols-2 mb-4">
-            <TabTrigger value="posts" className="flex items-center gap-2">
+          <TabsList className="grid grid-cols-2 mb-4">
+            <TabsTrigger value="posts" className="flex items-center gap-2">
               <Newspaper className="h-4 w-4" />
               <span>News</span>
-            </TabTrigger>
-            <TabTrigger value="chat" className="flex items-center gap-2">
+            </TabsTrigger>
+            <TabsTrigger value="chat" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
               <span>Assistant</span>
-            </TabTrigger>
-          </TabList>
-          <TabContent value="posts" className="space-y-4">
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="posts" className="space-y-4">
             <PostsFeed />
-          </TabContent>
-          <TabContent value="chat" className="h-[70vh]">
+          </TabsContent>
+          <TabsContent value="chat" className="h-[70vh]">
             <ChatBox />
-          </TabContent>
+          </TabsContent>
         </Tabs>
       </Layout>
     );

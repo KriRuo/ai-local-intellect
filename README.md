@@ -1,8 +1,42 @@
-# Welcome to your Lovable project
+
+# Welcome to your Lovable project - AI Insight Tracker
 
 ## Project info
 
 **URL**: https://lovable.dev/projects/a341bdf5-2167-49a7-9478-5c23b96be870
+
+## Project Overview
+
+AI Insight Tracker is a local-first AI news aggregator application that helps users stay up-to-date with the latest developments in artificial intelligence. The application features a news feed and an AI assistant to help users understand the content.
+
+## Current Status & Roadmap
+
+### Original MVP Requirements
+- ✅ News feed displaying AI-related articles
+- ✅ Basic AI assistant integration
+- ✅ Responsive design for mobile and desktop
+- ✅ Apple-inspired minimalist UI with light grey and blue tones
+
+### In Progress
+- 🚧 Article loading and error handling improvements
+- 🚧 Enhanced UI styling and visual feedback
+- 🚧 Chat functionality refinements
+
+### Planned Features
+- 📋 User authentication
+- 📋 Article bookmarking/saving
+- 📋 Categorized news feed
+- 📋 Advanced search and filtering
+- 📋 Personalized news recommendations
+- 📋 Offline support
+- 📋 Integration with multiple AI news sources
+
+## Current Technical Implementation
+- React with TypeScript for frontend development
+- Tailwind CSS for styling with custom Apple-inspired design system
+- shadcn-ui component library for consistent UI elements
+- Responsive layout using CSS grid and flexbox
+- Tabs interface for mobile view to switch between news and chat
 
 ## How can I edit this code?
 

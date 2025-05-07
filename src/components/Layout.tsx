@@ -1,15 +1,16 @@
-
 import { ThemeToggle } from "./ThemeToggle";
 import { Brain } from "lucide-react";
+import { IndustrialSidebar } from "./IndustrialSidebar";
 
 /**
  * Layout component provides the main structure of the application
  * 
  * Features:
  * 1. Sticky header with app branding and theme toggle
- * 2. Main content area with container width
- * 3. Footer with application information
- * 4. Apple-inspired styling with light background and subtle shadows
+ * 2. Sidebar navigation with collapsible sections
+ * 3. Main content area with container width
+ * 4. Footer with application information
+ * 5. Apple-inspired styling with light background and subtle shadows
  */
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,15 +25,24 @@ export function Layout({ children }: LayoutProps) {
             <Brain className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-medium">AI Insight Tracker</h1>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+          </div>
         </div>
       </header>
-      <main className="flex-1 container py-8">
-        {children}
-      </main>
+      <div className="flex flex-1">
+        <IndustrialSidebar />
+        <main className="flex-1 container py-8 ml-[3.05rem]">
+          {children}
+        </main>
+      </div>
       <footer className="border-t border-gray-100 py-6 bg-white/80">
         <div className="container text-center text-sm text-muted-foreground">
-          AI Insight Tracker - A local-first AI news aggregator
+          <div>AI Insight Tracker - A local-first AI news aggregator</div>
+          <div className="mt-2">
+            Backend: {import.meta.env.VITE_API_URL}<br />
+            Local address: {window.location.origin}
+          </div>
         </div>
       </footer>
     </div>

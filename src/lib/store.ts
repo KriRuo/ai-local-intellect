@@ -1,18 +1,5 @@
-
 import { create } from 'zustand';
-
-/**
- * Post interface defines the structure of an article in the news feed
- */
-export type Post = {
-  id: string;
-  title: string;
-  summary: string;
-  url: string;
-  published_at: string;
-  tags: string[];
-  source: string;
-};
+import type { Post } from './api'; // Use the API Post type
 
 /**
  * ChatMessage interface defines the structure of messages in the AI assistant

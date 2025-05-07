@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { PostCard } from "@/components/PostCard";
 import { useAppStore } from "@/lib/store";
@@ -7,6 +6,35 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+
+/**
+ * Loading skeleton for post cards
+ * Mimics the structure of PostCard for a smoother visual transition
+ */
+function PostCardSkeleton() {
+  return (
+    <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
+      <div className="p-5 pb-2">
+        <Skeleton className="h-6 w-3/4 mb-2" />
+        <Skeleton className="h-6 w-1/2" />
+      </div>
+      <div className="p-5 pt-1">
+        <Skeleton className="h-4 w-full mb-1" />
+        <Skeleton className="h-4 w-full mb-1" />
+        <Skeleton className="h-4 w-2/3 mb-3" />
+        <div className="flex gap-2">
+          <Skeleton className="h-5 w-16 rounded-full" />
+          <Skeleton className="h-5 w-16 rounded-full" />
+          <Skeleton className="h-5 w-16 rounded-full" />
+        </div>
+      </div>
+      <div className="p-5 pt-0 flex justify-between">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-4 w-24" />
+      </div>
+    </div>
+  );
+}
 
 /**
  * PostsFeed component manages the display of AI news articles
@@ -28,7 +56,7 @@ export function PostsFeed() {
     
     try {
       const fetchedPosts = await fetchPosts();
-      setPosts(fetchedPosts);
+      setPosts(fetchedPosts); // Store posts as-is from API
       
       // Show success toast if posts were loaded
       if (fetchedPosts && fetchedPosts.length > 0) {
@@ -65,48 +93,29 @@ export function PostsFeed() {
     );
   }
 
+  // Loading state view
+  if (isLoadingPosts) {
+    return (
+      <div className="space-y-6">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <PostCardSkeleton key={`skeleton-${index}`} />
+        ))}
+      </div>
+    );
+  }
+
+  // Main content view
   return (
     <div className="space-y-6">
-      {isLoadingPosts 
-        ? Array(3)
-            .fill(0)
-            .map((_, i) => <PostCardSkeleton key={i} />)
-        : posts.map((post) => <PostCard key={post.id} post={post} />)
-      }
-      {!isLoadingPosts && posts.length === 0 && (
-        <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
-          <p className="text-muted-foreground">No posts available yet.</p>
+      {posts.length === 0 ? (
+        <div className="text-center p-10 bg-white rounded-2xl shadow-sm">
+          <p className="text-muted-foreground">No articles available</p>
         </div>
+      ) : (
+        posts.map((post) => (
+          <PostCard key={post.id?.toString() ?? post.url} post={post} />
+        ))
       )}
-    </div>
-  );
-}
-
-/**
- * Loading skeleton for post cards
- * Mimics the structure of PostCard for a smoother visual transition
- */
-function PostCardSkeleton() {
-  return (
-    <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
-      <div className="p-5 pb-2">
-        <Skeleton className="h-6 w-3/4 mb-2" />
-        <Skeleton className="h-6 w-1/2" />
-      </div>
-      <div className="p-5 pt-1">
-        <Skeleton className="h-4 w-full mb-1" />
-        <Skeleton className="h-4 w-full mb-1" />
-        <Skeleton className="h-4 w-2/3 mb-3" />
-        <div className="flex gap-2">
-          <Skeleton className="h-5 w-16 rounded-full" />
-          <Skeleton className="h-5 w-16 rounded-full" />
-          <Skeleton className="h-5 w-16 rounded-full" />
-        </div>
-      </div>
-      <div className="p-5 pt-0 flex justify-between">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-4 w-24" />
-      </div>
     </div>
   );
 }

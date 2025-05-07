@@ -1,63 +1,40 @@
-
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { CalendarIcon, CircleIcon } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { Post } from "@/lib/store";
+import { Post } from '@/lib/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { formatDistanceToNow } from 'date-fns';
 
 interface PostCardProps {
   post: Post;
 }
 
 export function PostCard({ post }: PostCardProps) {
-  const formattedDate = formatDistanceToNow(
-    new Date(post.published_at),
-    { addSuffix: true }
-  );
-
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-md bg-white border-0 shadow-sm">
-      <CardHeader className="p-5 pb-2 flex flex-row justify-between items-start">
-        <div>
-          <h3 className="font-medium text-lg leading-tight line-clamp-2">
-            <a 
-              href={post.url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="hover:text-primary transition-colors"
-            >
-              {post.title}
-            </a>
-          </h3>
+    <Card className="hover:shadow-lg transition-shadow">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold line-clamp-2">
+            {post.title || 'Untitled'}
+          </CardTitle>
+          <Badge variant="outline">{post.source}</Badge>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span>{post.platform}</span>
+          <span>•</span>
+          <span>{formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })}</span>
         </div>
       </CardHeader>
-      <CardContent className="p-5 pt-1">
-        <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
-          {post.summary}
+      <CardContent>
+        <p className="text-sm text-muted-foreground line-clamp-3">
+          {post.content}
         </p>
-        <div className="flex flex-wrap gap-2">
-          {post.tags.slice(0, 3).map((tag) => (
-            <Badge key={tag} variant="secondary" className="text-xs rounded-full px-3 py-1">
-              {tag}
-            </Badge>
-          ))}
-          {post.tags.length > 3 && (
-            <Badge variant="outline" className="text-xs rounded-full px-3 py-1">
-              +{post.tags.length - 3} more
-            </Badge>
-          )}
-        </div>
+        {post.thumbnail && (
+          <img
+            src={post.thumbnail}
+            alt={post.title}
+            className="mt-4 rounded-md w-full h-48 object-cover"
+          />
+        )}
       </CardContent>
-      <CardFooter className="p-5 pt-0 flex justify-between items-center text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <CircleIcon className="h-3 w-3" />
-          <span>{post.source}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <CalendarIcon className="h-3 w-3" />
-          <span>{formattedDate}</span>
-        </div>
-      </CardFooter>
     </Card>
   );
 }

@@ -1,6 +1,9 @@
 
 import { create } from 'zustand';
 
+/**
+ * Post interface defines the structure of an article in the news feed
+ */
 export type Post = {
   id: string;
   title: string;
@@ -11,6 +14,9 @@ export type Post = {
   source: string;
 };
 
+/**
+ * ChatMessage interface defines the structure of messages in the AI assistant
+ */
 export type ChatMessage = {
   id: string;
   content: string;
@@ -18,22 +24,39 @@ export type ChatMessage = {
   timestamp: Date;
 };
 
+/**
+ * AppState interface defines the global state structure
+ * The app uses two main domains:
+ * 1. Posts management (news feed)
+ * 2. Chat management (AI assistant)
+ */
 interface AppState {
+  // Posts domain
   posts: Post[];
   isLoadingPosts: boolean;
   postError: string | null;
+  
+  // Chat domain
   chatMessages: ChatMessage[];
   isLoadingChat: boolean;
   chatError: string | null;
+  
+  // Posts actions
   setPosts: (posts: Post[]) => void;
   setIsLoadingPosts: (isLoading: boolean) => void;
   setPostError: (error: string | null) => void;
+  
+  // Chat actions
   addChatMessage: (message: ChatMessage) => void;
   setIsLoadingChat: (isLoading: boolean) => void;
   setChatError: (error: string | null) => void;
   clearChatMessages: () => void;
 }
 
+/**
+ * Global state store using Zustand
+ * Enables components to access and update state without prop drilling
+ */
 export const useAppStore = create<AppState>((set) => ({
   posts: [],
   isLoadingPosts: false,

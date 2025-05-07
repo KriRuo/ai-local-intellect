@@ -8,9 +8,20 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
+/**
+ * PostsFeed component manages the display of AI news articles
+ * 
+ * Features:
+ * 1. Auto-fetches articles on component mount
+ * 2. Displays loading skeletons during API requests
+ * 3. Handles error states with user-friendly messages
+ * 4. Provides retry functionality when loading fails
+ * 5. Shows toast notifications for loading success/failure
+ */
 export function PostsFeed() {
   const { posts, isLoadingPosts, postError, setPosts, setIsLoadingPosts, setPostError } = useAppStore();
 
+  // Fetches posts from API with loading states and error handling
   const loadPosts = async () => {
     setIsLoadingPosts(true);
     setPostError(null);
@@ -34,10 +45,12 @@ export function PostsFeed() {
     }
   };
 
+  // Load posts on component mount
   useEffect(() => {
     loadPosts();
   }, []);
 
+  // Error state view
   if (postError) {
     return (
       <div className="flex flex-col items-center justify-center p-10 text-center bg-white rounded-2xl shadow-sm">
@@ -69,6 +82,10 @@ export function PostsFeed() {
   );
 }
 
+/**
+ * Loading skeleton for post cards
+ * Mimics the structure of PostCard for a smoother visual transition
+ */
 function PostCardSkeleton() {
   return (
     <div className="border rounded-xl overflow-hidden shadow-sm bg-white">

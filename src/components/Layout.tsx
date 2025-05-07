@@ -2,6 +2,15 @@
 import { ThemeToggle } from "./ThemeToggle";
 import { Brain } from "lucide-react";
 
+/**
+ * Layout component provides the main structure of the application
+ * 
+ * Features:
+ * 1. Sticky header with app branding and theme toggle
+ * 2. Main content area with container width
+ * 3. Footer with application information
+ * 4. Apple-inspired styling with light background and subtle shadows
+ */
 interface LayoutProps {
   children: React.ReactNode;
 }

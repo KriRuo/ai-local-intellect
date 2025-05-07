@@ -1,9 +1,22 @@
 
 import { Post } from './store';
 
+/**
+ * API communication layer
+ * 
+ * This module handles all external API requests and provides
+ * fallback mock data when the API is unavailable (local-first approach)
+ * 
+ * Using relative paths allows deployment flexibility without hardcoding domains
+ */
+
 // Changed from localhost:8000 to use relative path
 const API_BASE_URL = '/api';
 
+/**
+ * Fetches AI news articles from the API
+ * Falls back to mock data if the API request fails
+ */
 export async function fetchPosts(): Promise<Post[]> {
   try {
     // First attempt to fetch from the API
@@ -68,6 +81,10 @@ export async function fetchPosts(): Promise<Post[]> {
   }
 }
 
+/**
+ * Sends a user question to the AI assistant and returns the response
+ * Falls back to a polite offline message if the API request fails
+ */
 export async function sendChatMessage(message: string): Promise<string> {
   try {
     const response = await fetch(`${API_BASE_URL}/chat`, {

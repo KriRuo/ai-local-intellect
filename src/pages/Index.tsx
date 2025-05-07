@@ -7,10 +7,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { MessageSquare, Newspaper } from "lucide-react";
 
+/**
+ * Index page is the main entry point of the application
+ * 
+ * Features:
+ * 1. Responsive layout - different UIs for mobile and desktop
+ * 2. Mobile: Tab-based navigation between news feed and AI assistant
+ * 3. Desktop: Side-by-side display of news feed and AI assistant
+ */
 const Index = () => {
+  // Detect if user is on a mobile device for responsive layout
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<string>("posts");
 
+  // Mobile-specific layout with tabs
   if (isMobile) {
     return (
       <Layout>
@@ -41,6 +51,7 @@ const Index = () => {
     );
   }
 
+  // Desktop layout with grid
   return (
     <Layout>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

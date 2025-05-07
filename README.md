@@ -31,12 +31,65 @@ AI Insight Tracker is a local-first AI news aggregator application that helps us
 - 📋 Offline support
 - 📋 Integration with multiple AI news sources
 
-## Current Technical Implementation
+## Architecture
+
+### Application Structure
+
+```
+src/
+├── components/          # UI components
+│   ├── ui/              # Shadcn UI components
+│   ├── Layout.tsx       # Main layout wrapper
+│   ├── PostCard.tsx     # Article card display
+│   ├── PostsFeed.tsx    # News feed container
+│   ├── ChatBox.tsx      # AI assistant interface
+│   └── ThemeToggle.tsx  # Dark/light mode switcher
+├── hooks/               # Custom React hooks
+│   ├── use-mobile.tsx   # Responsive design detection
+│   ├── use-theme.tsx    # Theme management
+│   └── use-toast.ts     # Toast notification hook
+├── lib/                 # Utilities and services
+│   ├── api.ts           # API communication
+│   ├── store.ts         # State management (Zustand)
+│   └── utils.ts         # Helper functions
+├── pages/               # Page components
+│   ├── Index.tsx        # Home page
+│   └── NotFound.tsx     # 404 page
+└── main.tsx             # Application entry point
+```
+
+### State Management
+
+- **Zustand Store**: Centralized state management using Zustand for both posts and chat data
+- State is divided into two main domains:
+  - `posts`: Manages article data, loading states, and error handling
+  - `chat`: Manages conversation messages, loading states, and error handling
+
+### Data Flow
+
+1. **API Layer**: 
+   - `api.ts` handles all external data fetching with error handling
+   - Fallback to mock data when API is unavailable
+   - Relative API paths for deployment flexibility
+
+2. **Component Layer**:
+   - Components consume state from Zustand store
+   - UI updates based on loading/error states
+   - Toast notifications for user feedback
+
+3. **Responsive Design**:
+   - Adaptive layout based on device size
+   - Tab-based navigation on mobile
+   - Grid-based layout on desktop
+
+### Technical Implementation
 - React with TypeScript for frontend development
 - Tailwind CSS for styling with custom Apple-inspired design system
 - shadcn-ui component library for consistent UI elements
 - Responsive layout using CSS grid and flexbox
 - Tabs interface for mobile view to switch between news and chat
+- Toast notifications for user feedback
+- Light/dark theme support
 
 ## How can I edit this code?
 
@@ -105,3 +158,4 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+

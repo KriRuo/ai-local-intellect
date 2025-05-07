@@ -9,6 +9,17 @@ import { useAppStore, ChatMessage } from "@/lib/store";
 import { sendChatMessage } from "@/lib/api";
 import { v4 as uuidv4 } from "uuid";
 
+/**
+ * ChatBox component provides the AI assistant interface
+ * 
+ * Features:
+ * 1. Chat message display with user/assistant distinction
+ * 2. Message input with form handling
+ * 3. Scrollable message area that accommodates growing content
+ * 4. Loading indicators during API requests
+ * 5. Empty state with helpful suggestions
+ * 6. Error handling for failed message sending
+ */
 export function ChatBox() {
   const [input, setInput] = useState("");
   const { 
@@ -19,6 +30,14 @@ export function ChatBox() {
     setChatError 
   } = useAppStore();
 
+  /**
+   * Handles sending a new message to the AI assistant
+   * 1. Prevents form submission if input is empty or request is in progress
+   * 2. Adds user message immediately to the UI
+   * 3. Sends message to API and handles response
+   * 4. Adds AI response to the chat history
+   * 5. Handles errors with appropriate messaging
+   */
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     

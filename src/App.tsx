@@ -8,6 +8,14 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
+/**
+ * Application root component
+ * 
+ * Provides:
+ * 1. Global providers for UI components (theme, tooltips, toasts)
+ * 2. React Query client for potential future data fetching needs
+ * 3. Routing configuration with React Router
+ */
 const queryClient = new QueryClient();
 
 const App = () => (

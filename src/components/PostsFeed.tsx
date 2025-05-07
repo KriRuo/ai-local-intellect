@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { PostCard } from "@/components/PostCard";
 import { useAppStore } from "@/lib/store";
 import { fetchPosts } from "@/lib/api";
-import { Button } from "@/components/ui/button"; // Fixed import from button.tsx instead of card.tsx
+import { Button } from "@/components/ui/button";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -23,39 +23,7 @@ export function PostsFeed() {
       if (fetchedPosts && fetchedPosts.length > 0) {
         toast.success(`Loaded ${fetchedPosts.length} articles`);
       } else {
-        // If no posts are returned, show an info message
         toast.info("No new articles found");
-        
-        // Use mock posts for development to ensure we see something
-        setPosts([
-          {
-            id: "1",
-            title: "OpenAI Releases GPT-5 with Enhanced Reasoning Capabilities",
-            summary: "The latest iteration of GPT focuses on logical reasoning and mathematical problem solving, addressing previous limitations in complex cognitive tasks.",
-            tags: ["OpenAI", "GPT-5", "AI Models"],
-            source: "OpenAI Blog",
-            published_at: new Date().toISOString(),
-            url: "https://example.com/openai-gpt5",
-          },
-          {
-            id: "2",
-            title: "Google DeepMind's Breakthrough in Protein Folding Accelerates Drug Discovery",
-            summary: "New advancements in AlphaFold technology have made protein structure prediction even more accurate, potentially reducing drug development timelines by years.",
-            tags: ["Google DeepMind", "AlphaFold", "Protein Folding", "Drug Discovery"],
-            source: "Google AI Blog",
-            published_at: new Date(Date.now() - 86400000).toISOString(),
-            url: "https://example.com/deepmind-protein",
-          },
-          {
-            id: "3",
-            title: "Meta's LLAMA 3 Goes Open Source",
-            summary: "Meta has released their latest large language model to the public, allowing researchers and companies to build on top of their work with fewer restrictions.",
-            tags: ["Meta", "LLAMA 3", "Open Source", "LLM"],
-            source: "Meta AI",
-            published_at: new Date(Date.now() - 172800000).toISOString(),
-            url: "https://example.com/meta-llama3",
-          }
-        ]);
       }
     } catch (error) {
       setPostError(error instanceof Error ? error.message : "Failed to load posts");

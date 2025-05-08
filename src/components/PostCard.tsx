@@ -1,47 +1,136 @@
-import { Post } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { formatDistanceToNow } from 'date-fns';
+import * as React from "react";
+import { cva } from "class-variance-authority";
+import { formatDistanceToNow } from "date-fns";
+import { ExternalLink, Clock, Globe } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import type { Post } from "@/lib/api";
 
-interface PostCardProps {
+// Utility to strip HTML tags from a string
+const stripHtml = (html: string) => html.replace(/<[^>]*>?/gm, "");
+const truncateText = (text: string, maxLength: number) =>
+  text.length <= maxLength ? text : text.slice(0, maxLength) + "...";
+
+const postCardVariants = cva("group transition-all duration-300", {
+  variants: {
+    variant: {
+      default: ["hover:shadow-md", "hover:-translate-y-1"],
+      gradient: [
+        "hover:shadow-lg",
+        "hover:shadow-primary/10",
+        "hover:-translate-y-1",
+      ],
+      lifted: [
+        "shadow-[0px_2px_0px_0px_rgba(0,0,0,0.4)]",
+        "dark:shadow-[0px_2px_0px_0px_rgba(255,255,255,0.3)]",
+        "hover:shadow-[0px_4px_0px_0px_rgba(0,0,0,0.4)]",
+        "dark:hover:shadow-[0px_4px_0px_0px_rgba(255,255,255,0.3)]",
+        "hover:-translate-y-1",
+      ],
+      neubrutalism: [
+        "border-[1px]",
+        "border-black dark:border-white/70",
+        "shadow-[3px_3px_0px_0px_rgba(0,0,0)]",
+        "dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.7)]",
+        "hover:shadow-[5px_5px_0px_0px_rgba(0,0,0)]",
+        "dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.7)]",
+        "hover:-translate-y-1 hover:-translate-x-1",
+      ],
+      corners: [
+        "hover:shadow-md",
+        "hover:-translate-y-1",
+      ],
+    },
+  },
+  defaultVariants: {
+    variant: "gradient",
+  },
+});
+
+export function PostCard({
+  post,
+  className,
+  variant = "gradient",
+}: {
   post: Post;
-}
+  className?: string;
+  variant?: "default" | "gradient" | "lifted" | "neubrutalism" | "corners";
+}) {
+  const formattedTime = React.useMemo(() => {
+    try {
+      return formatDistanceToNow(new Date(post.timestamp), { addSuffix: true });
+    } catch {
+      return post.timestamp;
+    }
+  }, [post.timestamp]);
 
-export function PostCard({ post }: PostCardProps) {
+  const cleanContent = React.useMemo(() => {
+    const stripped = stripHtml(post.content);
+    return truncateText(stripped, 1200);
+  }, [post.content]);
+
   return (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold line-clamp-2">
-            <a
-              href={post.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="transition-colors duration-150 hover:underline hover:text-blue-600 focus:underline focus:text-blue-600"
-            >
-              {post.title || 'Untitled'}
-            </a>
-          </CardTitle>
-          <Badge variant="outline">{post.source}</Badge>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>{post.platform}</span>
-          <span>•</span>
-          <span>{formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })}</span>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground line-clamp-3">
-          {post.content}
-        </p>
+    <Card
+      className={cn(
+        postCardVariants({ variant }),
+        "overflow-hidden border bg-card text-card-foreground",
+        className
+      )}
+    >
+      <div className="flex flex-col md:flex-row gap-2">
         {post.thumbnail && (
-          <img
-            src={post.thumbnail}
-            alt={post.title}
-            className="mt-4 rounded-md w-full h-48 object-cover"
-          />
+          <div className="md:w-1/4 overflow-hidden">
+            <div className="h-full w-full relative aspect-video md:aspect-square">
+              <img
+                src={post.thumbnail}
+                alt={post.title}
+                className="object-cover h-full w-full rounded-t-lg md:rounded-l-lg md:rounded-t-none transition-transform duration-300 group-hover:scale-105"
+              />
+            </div>
+          </div>
         )}
-      </CardContent>
+
+        <CardContent className={cn(
+          "flex-1 p-3 md:p-4",
+          post.thumbnail ? "md:w-3/4" : "w-full"
+        )}>
+          <div className="flex flex-col h-full">
+            <div className="space-y-2 mb-2">
+              <div className="flex items-center justify-between gap-2">
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
+                  {post.source}
+                </Badge>
+                <div className="flex items-center text-muted-foreground text-xs gap-1.5">
+                  <Clock className="h-3 w-3" />
+                  <span>{formattedTime}</span>
+                </div>
+              </div>
+
+              <a
+                href={post.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group/link"
+              >
+                <h3 className="font-semibold text-base md:text-lg leading-tight text-foreground group-hover/link:text-primary transition-colors duration-200">
+                  {post.title || "Untitled"}
+                  <ExternalLink className="inline-block ml-1.5 h-3.5 w-3.5 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+                </h3>
+              </a>
+            </div>
+
+            <p className="text-sm text-muted-foreground mb-2 line-clamp-16">
+              {cleanContent}
+            </p>
+
+            <div className="mt-auto flex items-center text-xs text-muted-foreground">
+              <Globe className="h-3 w-3 mr-1.5" />
+              <span>{post.platform}</span>
+            </div>
+          </div>
+        </CardContent>
+      </div>
     </Card>
   );
 }

@@ -6,11 +6,15 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Post } from "@/lib/api";
+import DOMPurify from "dompurify";
 
 // Utility to strip HTML tags from a string
 const stripHtml = (html: string) => html.replace(/<[^>]*>?/gm, "");
 const truncateText = (text: string, maxLength: number) =>
   text.length <= maxLength ? text : text.slice(0, maxLength) + "...";
+
+// Remove <img> tags from HTML content
+const removeImages = (html: string) => html.replace(/<img[^>]*>/gi, "");
 
 const postCardVariants = cva("group transition-all duration-300", {
   variants: {
@@ -65,9 +69,11 @@ export function PostCard({
     }
   }, [post.timestamp]);
 
-  const cleanContent = React.useMemo(() => {
-    const stripped = stripHtml(post.content);
-    return truncateText(stripped, 1200);
+  // Remove images, then sanitize and truncate HTML content
+  const safeHtml = React.useMemo(() => {
+    const noImages = removeImages(post.content);
+    const truncated = truncateText(noImages, 1200);
+    return DOMPurify.sanitize(truncated);
   }, [post.content]);
 
   return (
@@ -120,9 +126,7 @@ export function PostCard({
               </a>
             </div>
 
-            <p className="text-sm text-muted-foreground mb-2 line-clamp-16">
-              {cleanContent}
-            </p>
+            <div className="text-sm text-muted-foreground mb-2 line-clamp-16 prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: safeHtml }} />
 
             <div className="mt-auto flex items-center text-xs text-muted-foreground">
               <Globe className="h-3 w-3 mr-1.5" />

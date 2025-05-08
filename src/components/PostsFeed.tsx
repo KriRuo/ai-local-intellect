@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { PostCard } from "@/components/PostCard";
 import { useAppStore } from "@/lib/store";
 import { fetchPosts } from "@/lib/api";
@@ -48,6 +48,9 @@ function PostCardSkeleton() {
  */
 export function PostsFeed() {
   const { posts, isLoadingPosts, postError, setPosts, setIsLoadingPosts, setPostError } = useAppStore();
+  const [page, setPage] = useState(1);
+  const POSTS_PER_PAGE = 20;
+  const feedRef = useRef<HTMLDivElement>(null);
 
   // Fetches posts from API with loading states and error handling
   const loadPosts = async () => {
@@ -78,6 +81,17 @@ export function PostsFeed() {
     loadPosts();
   }, []);
 
+  // Scroll to top of feed when page changes
+  useEffect(() => {
+    if (feedRef.current) {
+      feedRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [page]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(posts.length / POSTS_PER_PAGE);
+  const paginatedPosts = posts.slice((page - 1) * POSTS_PER_PAGE, page * POSTS_PER_PAGE);
+
   // Error state view
   if (postError) {
     return (
@@ -104,17 +118,38 @@ export function PostsFeed() {
     );
   }
 
-  // Main content view
+  // Main content view with pagination
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" ref={feedRef}>
       {posts.length === 0 ? (
         <div className="text-center p-10 bg-white rounded-2xl shadow-sm">
           <p className="text-muted-foreground">No articles available</p>
         </div>
       ) : (
-        posts.map((post) => (
-          <PostCard key={post.id?.toString() ?? post.url} post={post} />
-        ))
+        <>
+          {paginatedPosts.map((post) => (
+            <PostCard key={post.id?.toString() ?? post.url} post={post} />
+          ))}
+          <div className="flex justify-center items-center gap-4 mt-6">
+            <Button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              variant="outline"
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              variant="outline"
+            >
+              Next
+            </Button>
+          </div>
+        </>
       )}
     </div>
   );

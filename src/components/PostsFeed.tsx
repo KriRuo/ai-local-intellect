@@ -1,12 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import { PostCard } from "@/components/PostCard";
 import { useAppStore } from "@/lib/store";
-import { fetchPosts } from "@/lib/api";
+import { fetchPosts, API_BASE_URL } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw, FilterIcon, ChevronDown, X, RotateCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { FilterIcon, ChevronDown, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -138,6 +137,7 @@ export function PostsFeed() {
   const { posts, isLoadingPosts, postError, setPosts, setIsLoadingPosts, setPostError } = useAppStore();
   const [page, setPage] = useState(1);
   const [filteredSources, setFilteredSources] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
   const POSTS_PER_PAGE = 20;
   const feedRef = useRef<HTMLDivElement>(null);
 
@@ -192,6 +192,28 @@ export function PostsFeed() {
   const totalPages = Math.ceil(filteredPosts.length / POSTS_PER_PAGE);
   const paginatedPosts = filteredPosts.slice((page - 1) * POSTS_PER_PAGE, page * POSTS_PER_PAGE);
 
+  // Refresh Feeds handler
+  const handleRefreshFeeds = async () => {
+    setRefreshing(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/scrape/rss/trigger`, { method: "POST" });
+      if (response.ok) {
+        toast.success("RSS feeds are being refreshed. This may take a moment.");
+        // Wait a few seconds before reloading posts (or poll for completion in a real app)
+        setTimeout(() => {
+          loadPosts();
+          setRefreshing(false);
+        }, 4000);
+      } else {
+        toast.error("Failed to trigger RSS refresh.");
+        setRefreshing(false);
+      }
+    } catch (e) {
+      toast.error("Failed to trigger RSS refresh.");
+      setRefreshing(false);
+    }
+  };
+
   // Error state view
   if (postError) {
     return (
@@ -221,7 +243,21 @@ export function PostsFeed() {
   // Main content view with filter and pagination
   return (
     <div className="space-y-6" ref={feedRef}>
-      <RSSFilter sources={uniqueSources} onFilterChange={setFilteredSources} />
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
+        <div className="flex-1">
+          <RSSFilter sources={uniqueSources} onFilterChange={setFilteredSources} />
+        </div>
+        <Button
+          onClick={handleRefreshFeeds}
+          disabled={refreshing}
+          variant="default"
+          className="flex items-center gap-2 self-end md:self-auto"
+          style={{ minWidth: 150 }}
+        >
+          <RotateCw className={refreshing ? "animate-spin" : ""} />
+          {refreshing ? "Refreshing..." : "Refresh Feeds"}
+        </Button>
+      </div>
       {filteredPosts.length === 0 ? (
         <div className="text-center p-10 bg-white rounded-2xl shadow-sm">
           <p className="text-muted-foreground">No articles available</p>

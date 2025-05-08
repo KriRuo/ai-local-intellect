@@ -24,7 +24,7 @@ export interface Post {
   updated_at?: string;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api';
 
 /**
  * Fetches AI news articles from the API

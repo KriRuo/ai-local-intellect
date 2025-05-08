@@ -3,6 +3,7 @@ import { ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { API_BASE_URL } from "@/lib/api";
 
 interface RSSSource {
   source: string;
@@ -95,7 +96,7 @@ const RssSources = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/rss-sources");
+        const res = await fetch(`${API_BASE_URL}/rss-sources`);
         const data = await res.json();
         if (data.status === "success") {
           setSources(data.data);

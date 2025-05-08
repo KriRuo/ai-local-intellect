@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { PostCard } from "@/components/PostCard";
 import { useAppStore } from "@/lib/store";
 import { fetchPosts, API_BASE_URL } from "@/lib/api";
@@ -39,14 +39,18 @@ function PostCardSkeleton() {
   );
 }
 
-function RSSFilter({ sources, onFilterChange, className = "" }) {
-  const [selectedSources, setSelectedSources] = useState([]);
+function RSSFilter({ sources, onFilterChange, className = "" }: {
+  sources: { id: string; name: string }[];
+  onFilterChange: (selected: string[]) => void;
+  className?: string;
+}): JSX.Element {
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
 
   // Sort sources alphabetically by name
   const sortedSources = [...sources].sort((a, b) => a.name.localeCompare(b.name));
 
-  const handleSourceToggle = (sourceId) => {
+  const handleSourceToggle = (sourceId: string) => {
     setSelectedSources((current) => {
       const newSelection = current.includes(sourceId)
         ? current.filter((id) => id !== sourceId)
@@ -135,11 +139,16 @@ function RSSFilter({ sources, onFilterChange, className = "" }) {
  */
 export function PostsFeed() {
   const { posts, isLoadingPosts, postError, setPosts, setIsLoadingPosts, setPostError } = useAppStore();
-  const [page, setPage] = useState(1);
-  const [filteredSources, setFilteredSources] = useState([]);
+  const [page, setPage] = useState<number>(1);
+  const [filteredSources, setFilteredSources] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const POSTS_PER_PAGE = 20;
   const feedRef = useRef<HTMLDivElement>(null);
+
+  // Memoize onFilterChange
+  const handleFilterChange = useCallback((sources: string[]) => {
+    setFilteredSources(sources);
+  }, []);
 
   // Fetches posts from API with loading states and error handling
   const loadPosts = async () => {
@@ -245,7 +254,7 @@ export function PostsFeed() {
     <div className="space-y-6" ref={feedRef}>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
         <div className="flex-1">
-          <RSSFilter sources={uniqueSources} onFilterChange={setFilteredSources} />
+          <RSSFilter sources={uniqueSources} onFilterChange={handleFilterChange} />
         </div>
         <Button
           onClick={handleRefreshFeeds}
@@ -264,9 +273,10 @@ export function PostsFeed() {
         </div>
       ) : (
         <>
-          {paginatedPosts.map((post) => (
-            <PostCard key={post.id?.toString() ?? post.url} post={post} />
-          ))}
+          {paginatedPosts.map((post) => {
+            if (!post.id && !post.url) throw new Error("Post must have either an id or url as a unique key");
+            return <PostCard key={post.id?.toString() ?? post.url} post={post} />;
+          })}
           <div className="flex justify-center items-center gap-4 mt-6">
             <Button
               onClick={() => setPage((p) => Math.max(1, p - 1))}

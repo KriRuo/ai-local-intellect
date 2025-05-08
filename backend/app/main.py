@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Optional
-from .scrapers import rss_scraper
-from .db.models import Base, Post
+from .scrapers import rss_scraper, substack_scraper
+from .db.models import Base, Post, RssScrapeRun
 from .db.database import engine, get_db, SessionLocal
 from sqlalchemy.orm import Session
 import logging
@@ -28,6 +28,7 @@ app.add_middleware(
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
+logging.info("🚀 FastAPI backend is starting up...")
 
 # Automatically import all RSS feeds on startup
 rss_sources_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rss_sources.json')
@@ -145,4 +146,62 @@ def get_rss_sources():
         raise HTTPException(status_code=404, detail="rss_sources.json not found")
     with open(rss_sources_path, 'r', encoding='utf-8') as f:
         feeds = json.load(f)
-    return {"status": "success", "data": feeds} 
+    return {"status": "success", "data": feeds}
+
+@app.get("/api/rss-runs")
+def get_rss_runs(db: Session = Depends(get_db)):
+    try:
+        logging.info("📥 /api/rss-runs endpoint was called")
+        runs = db.query(RssScrapeRun).order_by(RssScrapeRun.started_at.desc()).limit(50).all()
+        logging.info(f"Found {len(runs)} RSS scrape runs in the database.")
+        def run_to_dict(run):
+            return {
+                "id": run.id,
+                "started_at": run.started_at.isoformat() if run.started_at else None,
+                "ended_at": run.ended_at.isoformat() if run.ended_at else None,
+                "duration_seconds": run.duration_seconds,
+                "num_sources_total": run.num_sources_total,
+                "num_sources_skipped": run.num_sources_skipped,
+                "num_sources_captured": run.num_sources_captured,
+                "num_articles_captured": run.num_articles_captured,
+                "status": run.status,
+                "error_message": run.error_message,
+            }
+        return {"status": "success", "data": [run_to_dict(r) for r in runs]}
+    except Exception as e:
+        logging.error(f"Error in /api/rss-runs: {e}")
+        raise 
+
+@app.get("/api/scrape/substack")
+async def scrape_substack(url: str):
+    try:
+        articles = substack_scraper.scrape_substack_articles(url)
+        return {"status": "success", "data": articles}
+    except substack_scraper.SubstackScraperError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/scrape/substack/save")
+def scrape_and_save_substack(
+    url: str,
+    db: Session = Depends(get_db)
+):
+    try:
+        posts = substack_scraper.scrape_and_save_substack(db, url)
+        return {"status": "success", "data": [
+            {
+                "id": p.id,
+                "source": p.source,
+                "platform": p.platform,
+                "url": p.url,
+                "title": p.title,
+                "content": p.content,
+                "summary": p.summary,
+                "timestamp": p.timestamp.isoformat() if p.timestamp else None,
+                "thumbnail": p.thumbnail,
+                "author": p.author,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+                "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+            } for p in posts
+        ]}
+    except substack_scraper.SubstackScraperError as e:
+        raise HTTPException(status_code=500, detail=str(e)) 

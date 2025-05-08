@@ -9,6 +9,7 @@ import { Layout } from "./components/Layout";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import RssFeed from "./pages/RssFeed";
+import RssSources from "./pages/RssSources";
 
 /**
  * Application root component
@@ -34,6 +35,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/rss-feed" element={<RssFeed />} />
+                <Route path="/rss-sources" element={<RssSources />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

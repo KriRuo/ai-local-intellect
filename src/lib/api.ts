@@ -39,7 +39,8 @@ export async function fetchPosts(): Promise<Post[]> {
       throw new Error(`Failed to fetch posts: ${response.status}`);
     }
     
-    return await response.json();
+    const data = await response.json();
+    return data.data;
   } catch (error) {
     console.error('Error fetching posts:', error);
     

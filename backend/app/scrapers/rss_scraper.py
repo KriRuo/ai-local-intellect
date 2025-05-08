@@ -12,8 +12,21 @@ from typing import List, Dict
 from time import mktime
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
-from ..db.models import Post
+from backend.app.db.models import Post
 import logging
+
+class RSSFeedError(Exception):
+    """Base class for RSS feed errors."""
+    pass
+
+class InvalidFeedURLError(RSSFeedError):
+    pass
+
+class FeedParsingError(RSSFeedError):
+    pass
+
+class NoEntriesFoundError(RSSFeedError):
+    pass
 
 def clean_content(content: str) -> str:
     """
@@ -43,12 +56,13 @@ def scrape_rss_feed(url: str, source: str, platform: str = "RSS") -> List[Dict]:
     """
     posts = []
     print(f"📡 Fetching RSS feed from {url}...")
-    
-    # Parse the feed
+    if not url or not url.startswith(('http://', 'https://')):
+        raise InvalidFeedURLError(f"Invalid feed URL: {url}")
     feed = feedparser.parse(url)
-    
     if feed.bozo:
-        raise Exception(f"Error parsing feed: {feed.bozo_exception}")
+        raise FeedParsingError(f"Error parsing feed: {feed.bozo_exception}")
+    if not hasattr(feed, 'entries') or not feed.entries:
+        raise NoEntriesFoundError(f"No entries found in feed: {url}")
     
     # Process each entry
     for entry in feed.entries:
@@ -74,11 +88,11 @@ def scrape_rss_feed(url: str, source: str, platform: str = "RSS") -> List[Dict]:
             
             # Get timestamp
             if hasattr(entry, "published_parsed"):
-                timestamp = datetime.fromtimestamp(mktime(entry.published_parsed)).isoformat()
+                timestamp = datetime.fromtimestamp(mktime(entry.published_parsed))
             elif hasattr(entry, "updated_parsed"):
-                timestamp = datetime.fromtimestamp(mktime(entry.updated_parsed)).isoformat()
+                timestamp = datetime.fromtimestamp(mktime(entry.updated_parsed))
             else:
-                timestamp = datetime.utcnow().isoformat()
+                timestamp = datetime.utcnow()
                 print("⚠️ No timestamp found, using current time")
             
             # Extract thumbnail

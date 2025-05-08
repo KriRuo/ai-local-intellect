@@ -1,8 +1,8 @@
 import os
 import json
 import logging
-from db.database import SessionLocal
-from scrapers.rss_scraper import scrape_and_save_rss_feed
+from backend.app.db.database import SessionLocal
+from backend.app.scrapers.rss_scraper import scrape_and_save_rss_feed
 
 logging.basicConfig(level=logging.INFO)
 

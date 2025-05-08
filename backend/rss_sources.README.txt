@@ -1,0 +1,26 @@
+This file explains the structure and usage of rss_sources.json for the AI Insight Tracker backend and frontend.
+
+INPUT:
+Each object in the array represents an RSS feed source with the following fields:
+  - source: (string) Name of the source (required)
+  - url: (string) RSS feed URL (required)
+  - platform: (string) Platform type, usually "RSS" (optional)
+  - category: (string) Category of the source, e.g., "AI News" (optional)
+  - description: (string) Description of the source (optional)
+  - source_type: (string) Type of source, e.g., "Industry", "Academic" (optional)
+
+OUTPUT:
+This file is loaded by the backend to import and scrape feeds, and is served via the /api/rss-sources endpoint for the frontend to display the list of sources.
+
+Example usage in frontend:
+  fetch('/api/rss-sources')
+    -> returns an array of source objects as defined above
+
+Example object:
+  {
+    "source": "OpenAI Blog",
+    "url": "https://openai.com/blog/rss.xml",
+    "category": "AI News",
+    "description": "Official OpenAI blog posts and announcements",
+    "source_type": "Industry"
+  } 

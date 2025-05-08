@@ -13,7 +13,14 @@ export function PostCard({ post }: PostCardProps) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold line-clamp-2">
-            {post.title || 'Untitled'}
+            <a
+              href={post.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors duration-150 hover:underline hover:text-blue-600 focus:underline focus:text-blue-600"
+            >
+              {post.title || 'Untitled'}
+            </a>
           </CardTitle>
           <Badge variant="outline">{post.source}</Badge>
         </div>

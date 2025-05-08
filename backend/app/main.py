@@ -9,6 +9,8 @@ import logging
 import os
 import json
 import subprocess
+from pydantic import BaseModel
+from .scrapers.rss_scraper import RSSFeedError, InvalidFeedURLError, FeedParsingError, NoEntriesFoundError
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -55,6 +57,22 @@ if os.path.exists(rss_sources_path):
     db.close()
     logging.info(f"RSS import complete. Imported: {imported_count}, Skipped: {skipped_count}, Failed: {failed_count}, Total: {len(feeds)}.")
 
+class RSSRequest(BaseModel):
+    url: str
+    source: str
+    platform: str = "RSS"
+
+    @classmethod
+    def validate_url(cls, url: str):
+        if not url or not url.startswith(("http://", "https://")):
+            raise ValueError("URL must start with http:// or https://")
+        return url
+
+    @classmethod
+    def __get_validators__(cls):
+        yield from super().__get_validators__()
+        yield cls.validate_url
+
 @app.get("/api/scrape/rss")
 async def scrape_rss(url: str, source: str, platform: str = "RSS"):
     try:
@@ -65,20 +83,27 @@ async def scrape_rss(url: str, source: str, platform: str = "RSS"):
 
 @app.post("/api/scrape/rss/save")
 def scrape_and_save_rss(
-    url: str, source: str, platform: str = "RSS", db: Session = Depends(get_db)
+    req: RSSRequest, db: Session = Depends(get_db)
 ):
     from .scrapers.rss_scraper import scrape_and_save_rss_feed
     try:
-        posts = scrape_and_save_rss_feed(db, url, source, platform)
+        posts = scrape_and_save_rss_feed(db, req.url, req.source, req.platform)
         return {"status": "success", "data": posts}
+    except InvalidFeedURLError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FeedParsingError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except NoEntriesFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except RSSFeedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 @app.get("/api/posts")
 def get_posts(db: Session = Depends(get_db)):
     posts = db.query(Post).order_by(Post.timestamp.desc()).all()
     logging.info(f"Fetched {len(posts)} posts from the database.")
-    # Convert SQLAlchemy objects to dicts for JSON serialization
     def post_to_dict(post):
         return {
             "id": post.id,
@@ -91,8 +116,18 @@ def get_posts(db: Session = Depends(get_db)):
             "timestamp": post.timestamp.isoformat() if post.timestamp else None,
             "thumbnail": post.thumbnail,
             "author": post.author,
+            "created_at": post.created_at.isoformat() if post.created_at else None,
+            "updated_at": post.updated_at.isoformat() if post.updated_at else None,
         }
-    return {"status": "success", "data": [post_to_dict(p) for p in posts]}
+    if posts:
+        return {"status": "success", "data": [post_to_dict(p) for p in posts]}
+    # Fallback to rss_feeds.json if DB is empty
+    rss_feeds_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rss_feeds.json')
+    if os.path.exists(rss_feeds_path):
+        with open(rss_feeds_path, 'r', encoding='utf-8') as f:
+            feeds_data = json.load(f)
+            return {"status": "success", "data": feeds_data.get("posts", [])}
+    return {"status": "success", "data": []}
 
 @app.post("/api/scrape/rss/trigger")
 def trigger_rss_scraper():
@@ -101,4 +136,13 @@ def trigger_rss_scraper():
         subprocess.Popen(["python", script_path])
         return {"status": "started", "message": "RSS scraping script triggered."}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/rss-sources")
+def get_rss_sources():
+    rss_sources_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rss_sources.json')
+    if not os.path.exists(rss_sources_path):
+        raise HTTPException(status_code=404, detail="rss_sources.json not found")
+    with open(rss_sources_path, 'r', encoding='utf-8') as f:
+        feeds = json.load(f)
+    return {"status": "success", "data": feeds} 

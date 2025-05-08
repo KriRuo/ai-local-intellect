@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { FilterIcon, ChevronDown, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 /**
  * Loading skeleton for post cards
@@ -36,6 +40,90 @@ function PostCardSkeleton() {
   );
 }
 
+function RSSFilter({ sources, onFilterChange, className = "" }) {
+  const [selectedSources, setSelectedSources] = useState([]);
+  const [open, setOpen] = useState(false);
+
+  // Sort sources alphabetically by name
+  const sortedSources = [...sources].sort((a, b) => a.name.localeCompare(b.name));
+
+  const handleSourceToggle = (sourceId) => {
+    setSelectedSources((current) => {
+      const newSelection = current.includes(sourceId)
+        ? current.filter((id) => id !== sourceId)
+        : [...current, sourceId];
+      return newSelection;
+    });
+  };
+
+  const clearAllFilters = () => {
+    setSelectedSources([]);
+  };
+
+  useEffect(() => {
+    onFilterChange(selectedSources);
+  }, [selectedSources, onFilterChange]);
+
+  return (
+    <div className={cn("flex flex-col space-y-2", className)}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <FilterIcon size={16} className="text-muted-foreground" />
+          <span className="text-sm font-medium">Filter Sources</span>
+        </div>
+        {selectedSources.length > 0 && (
+          <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-8 px-2 text-xs">
+            Clear all
+          </Button>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <DropdownMenu open={open} onOpenChange={setOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-9">
+              {selectedSources.length > 0 ? `${selectedSources.length} selected` : "Select sources"}
+              <ChevronDown className="ml-2 h-4 w-4 opacity-60" aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56 max-h-64 overflow-y-auto" align="start">
+            {sortedSources.map((source) => (
+              <DropdownMenuCheckboxItem
+                key={source.id}
+                checked={selectedSources.includes(source.id)}
+                onCheckedChange={() => handleSourceToggle(source.id)}
+              >
+                {source.name}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {selectedSources.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {selectedSources.map((sourceId) => {
+              const source = sources.find((s) => s.id === sourceId);
+              if (!source) return null;
+              return (
+                <Badge key={sourceId} variant="secondary" className="px-2 py-1 h-9">
+                  {source.name}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleSourceToggle(sourceId)}
+                    className="h-auto w-auto p-0 ml-1"
+                  >
+                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                    <span className="sr-only">Remove {source.name} filter</span>
+                  </Button>
+                </Badge>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /**
  * PostsFeed component manages the display of AI news articles
  * 
@@ -49,6 +137,7 @@ function PostCardSkeleton() {
 export function PostsFeed() {
   const { posts, isLoadingPosts, postError, setPosts, setIsLoadingPosts, setPostError } = useAppStore();
   const [page, setPage] = useState(1);
+  const [filteredSources, setFilteredSources] = useState([]);
   const POSTS_PER_PAGE = 20;
   const feedRef = useRef<HTMLDivElement>(null);
 
@@ -88,9 +177,20 @@ export function PostsFeed() {
     }
   }, [page]);
 
+  // Get unique sources from posts
+  const uniqueSources = Array.from(
+    new Set(posts.map((p) => p.source))
+  ).map((source) => ({ id: source, name: source }));
+
+  // Filter posts by selected sources
+  const filteredPosts =
+    filteredSources.length === 0
+      ? posts
+      : posts.filter((post) => filteredSources.includes(post.source));
+
   // Pagination logic
-  const totalPages = Math.ceil(posts.length / POSTS_PER_PAGE);
-  const paginatedPosts = posts.slice((page - 1) * POSTS_PER_PAGE, page * POSTS_PER_PAGE);
+  const totalPages = Math.ceil(filteredPosts.length / POSTS_PER_PAGE);
+  const paginatedPosts = filteredPosts.slice((page - 1) * POSTS_PER_PAGE, page * POSTS_PER_PAGE);
 
   // Error state view
   if (postError) {
@@ -118,10 +218,11 @@ export function PostsFeed() {
     );
   }
 
-  // Main content view with pagination
+  // Main content view with filter and pagination
   return (
     <div className="space-y-6" ref={feedRef}>
-      {posts.length === 0 ? (
+      <RSSFilter sources={uniqueSources} onFilterChange={setFilteredSources} />
+      {filteredPosts.length === 0 ? (
         <div className="text-center p-10 bg-white rounded-2xl shadow-sm">
           <p className="text-muted-foreground">No articles available</p>
         </div>

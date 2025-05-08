@@ -1,12 +1,13 @@
 import * as React from "react";
 import { cva } from "class-variance-authority";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { ExternalLink, Clock, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Post } from "@/lib/api";
 import DOMPurify from "dompurify";
+import { toZonedTime } from "date-fns-tz";
 
 // Utility to strip HTML tags from a string
 const stripHtml = (html: string) => html.replace(/<[^>]*>?/gm, "");
@@ -61,13 +62,30 @@ export function PostCard({
   className?: string;
   variant?: "default" | "gradient" | "lifted" | "neubrutalism" | "corners";
 }) {
+  // Convert timestamp to Switzerland time zone
+  const zurichTime = React.useMemo(() => {
+    try {
+      return toZonedTime(new Date(post.timestamp), "Europe/Zurich");
+    } catch {
+      return new Date(post.timestamp);
+    }
+  }, [post.timestamp]);
+
   const formattedTime = React.useMemo(() => {
     try {
-      return formatDistanceToNow(new Date(post.timestamp), { addSuffix: true });
+      return formatDistanceToNow(zurichTime, { addSuffix: true });
     } catch {
       return post.timestamp;
     }
-  }, [post.timestamp]);
+  }, [zurichTime, post.timestamp]);
+
+  const formattedDate = React.useMemo(() => {
+    try {
+      return format(zurichTime, "yyyy-MM-dd HH:mm");
+    } catch {
+      return post.timestamp;
+    }
+  }, [zurichTime, post.timestamp]);
 
   // Remove images, then sanitize and truncate HTML content
   const safeHtml = React.useMemo(() => {
@@ -107,9 +125,12 @@ export function PostCard({
                 <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
                   {post.source}
                 </Badge>
-                <div className="flex items-center text-muted-foreground text-xs gap-1.5">
-                  <Clock className="h-3 w-3" />
-                  <span>{formattedTime}</span>
+                <div className="flex flex-col items-end text-muted-foreground text-xs gap-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="h-3 w-3" />
+                    <span>{formattedTime}</span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">{formattedDate} (CH)</span>
                 </div>
               </div>
 

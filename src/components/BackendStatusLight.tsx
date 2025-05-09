@@ -2,6 +2,13 @@ import React, { useEffect, useState } from "react";
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:8081";
 
+/**
+ * BackendStatusLight component displays a colored indicator showing backend API status.
+ *
+ * - Polls the backend /health endpoint every 5 seconds
+ * - Green (limegreen) if backend is online, gray if offline
+ * - Tooltip shows current status
+ */
 export function BackendStatusLight() {
   const [online, setOnline] = useState(false);
 

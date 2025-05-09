@@ -1,4 +1,3 @@
-
 # Welcome to your Lovable project - AI Insight Tracker
 
 ## Project info
@@ -146,6 +145,46 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+
+## Backend Setup & Usage
+
+The backend is a FastAPI application that provides the API for news aggregation and scraping. To run the backend locally:
+
+```sh
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+See `backend/README.md` for more details on backend setup, development, and API usage.
+
+## Environment Variables
+
+- `VITE_API_URL`: The base URL for the backend API (e.g., `http://localhost:8081`). Set this in your `.env` or via your deployment environment.
+- The backend may use additional environment variables for database configuration, etc. See `backend/README.md` for details.
+
+## Backend API Endpoints (Summary)
+
+- `GET /api/posts` — Get all posts
+- `GET /api/rss-sources` — Get all RSS sources
+- `GET /api/rss-runs` — Get recent RSS scrape runs
+- `GET /api/scrape/rss` — Scrape an RSS feed (query params: url, source, platform)
+- `POST /api/scrape/rss/save` — Scrape and save an RSS feed (JSON body)
+- `POST /api/scrape/rss/trigger` — Trigger the RSS scraping script
+- `GET /api/scrape/substack` — Scrape a Substack feed (query param: url)
+- `POST /api/scrape/substack/save` — Scrape and save a Substack feed (JSON body)
+- `GET /health` — Health check endpoint
+
+See `backend/README.md` for full details and request/response formats.
+
+## Frontend-Backend Integration
+
+- The frontend communicates with the backend via the API endpoints above.
+- The health check endpoint (`/health`) is used to display backend status in the UI.
+- News posts, sources, and chat features rely on backend data.
+- If the backend is offline, the frontend may fall back to mock data or display an error.
 
 ## How can I deploy this project?
 

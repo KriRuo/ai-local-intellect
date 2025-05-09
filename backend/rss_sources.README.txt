@@ -1,5 +1,7 @@
 This file explains the structure and usage of rss_sources.json for the AI Insight Tracker backend and frontend.
 
+> For backend setup, running instructions, and API usage, see `backend/README.md`.
+
 INPUT:
 Each object in the array represents an RSS feed source with the following fields:
   - source: (string) Name of the source (required)

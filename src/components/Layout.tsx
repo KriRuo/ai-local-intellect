@@ -4,14 +4,14 @@ import { IndustrialSidebar } from "./IndustrialSidebar";
 import { BackendStatusLight } from "./BackendStatusLight";
 
 /**
- * Layout component provides the main structure of the application
- * 
- * Features:
- * 1. Sticky header with app branding and theme toggle
- * 2. Sidebar navigation with collapsible sections
- * 3. Main content area with container width
- * 4. Footer with application information
- * 5. Apple-inspired styling with light background and subtle shadows
+ * Layout component provides the main structure of the application.
+ *
+ * - Sticky header with app branding and theme toggle
+ * - Sidebar navigation with collapsible sections
+ * - Main content area with container width
+ * - Footer with backend status and addresses
+ *
+ * @param children - React children to render in the main content area
  */
 interface LayoutProps {
   children: React.ReactNode;

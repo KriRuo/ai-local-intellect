@@ -9,12 +9,27 @@ import type { Post } from "@/lib/api";
 import DOMPurify from "dompurify";
 import { toZonedTime } from "date-fns-tz";
 
-// Utility to strip HTML tags from a string
+/**
+ * Utility to strip HTML tags from a string
+ * @param html - HTML string
+ * @returns Plain text string
+ */
 const stripHtml = (html: string) => html.replace(/<[^>]*>?/gm, "");
+
+/**
+ * Truncate text to a maximum length
+ * @param text - Input string
+ * @param maxLength - Maximum length
+ * @returns Truncated string
+ */
 const truncateText = (text: string, maxLength: number) =>
   text.length <= maxLength ? text : text.slice(0, maxLength) + "...";
 
-// Remove <img> tags from HTML content
+/**
+ * Remove <img> tags from HTML content
+ * @param html - HTML string
+ * @returns HTML string without images
+ */
 const removeImages = (html: string) => html.replace(/<img[^>]*>/gi, "");
 
 const postCardVariants = cva("group transition-all duration-300", {
@@ -53,6 +68,12 @@ const postCardVariants = cva("group transition-all duration-300", {
   },
 });
 
+/**
+ * PostCard component displays a single news post in a styled card.
+ * @param post - Post object to display
+ * @param className - Optional CSS class
+ * @param variant - Card style variant
+ */
 export function PostCard({
   post,
   className,

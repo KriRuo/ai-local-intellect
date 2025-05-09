@@ -1,5 +1,7 @@
 # RSS Feeds JSON Format
 
+> For backend setup, running instructions, and API usage, see `backend/README.md`.
+
 This file documents the structure and usage of `rss_feeds.json`, which contains scraped RSS feed posts in a format matching the backend and frontend `Post` interface.
 
 ## Input

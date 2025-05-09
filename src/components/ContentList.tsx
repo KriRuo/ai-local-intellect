@@ -10,6 +10,14 @@ interface ContentListProps {
   platform?: string;
 }
 
+/**
+ * ContentList component displays a list of posts from an RSS or webscraped source.
+ *
+ * @param type - 'rss' or 'ws' (webscraped)
+ * @param url - Feed URL (for RSS)
+ * @param source - Source name (for RSS)
+ * @param platform - Platform type (optional)
+ */
 export function ContentList({ type, url, source, platform }: ContentListProps) {
   if (type === 'rss' && url && source) {
     const { data: posts, isLoading, error } = useRSSFeed(url, source, platform);
@@ -47,6 +55,9 @@ export function ContentList({ type, url, source, platform }: ContentListProps) {
   return null;
 }
 
+/**
+ * FeedSkeleton component displays loading skeletons for the content list.
+ */
 function FeedSkeleton() {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

@@ -39,6 +39,12 @@ function PostCardSkeleton() {
   );
 }
 
+/**
+ * RSSFilter component allows users to filter posts by source.
+ * @param sources - List of available sources
+ * @param onFilterChange - Callback when selected sources change
+ * @param className - Optional CSS class
+ */
 function RSSFilter({ sources, onFilterChange, className = "" }: {
   sources: { id: string; name: string }[];
   onFilterChange: (selected: string[]) => void;
@@ -129,7 +135,7 @@ function RSSFilter({ sources, onFilterChange, className = "" }: {
 
 /**
  * PostsFeed component manages the display of AI news articles
- * 
+ *
  * Features:
  * 1. Auto-fetches articles on component mount
  * 2. Displays loading skeletons during API requests
@@ -138,6 +144,7 @@ function RSSFilter({ sources, onFilterChange, className = "" }: {
  * 5. Shows toast notifications for loading success/failure
  */
 export function PostsFeed() {
+  // Zustand store for posts state
   const { posts, isLoadingPosts, postError, setPosts, setIsLoadingPosts, setPostError } = useAppStore();
   const [page, setPage] = useState<number>(1);
   const [filteredSources, setFilteredSources] = useState<string[]>([]);
@@ -150,7 +157,9 @@ export function PostsFeed() {
     setFilteredSources(sources);
   }, []);
 
-  // Fetches posts from API with loading states and error handling
+  /**
+   * Fetches posts from API with loading states and error handling
+   */
   const loadPosts = async () => {
     setIsLoadingPosts(true);
     setPostError(null);

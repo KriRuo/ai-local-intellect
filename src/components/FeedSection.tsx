@@ -9,6 +9,13 @@ interface FeedSectionProps {
   platform?: string;
 }
 
+/**
+ * FeedSection component displays a section of posts from a single RSS feed source.
+ *
+ * @param url - Feed URL
+ * @param source - Source name
+ * @param platform - Platform type (optional)
+ */
 export function FeedSection({
   url,
   source,
@@ -37,6 +44,9 @@ export function FeedSection({
   );
 }
 
+/**
+ * FeedSkeleton component displays loading skeletons for the feed section.
+ */
 function FeedSkeleton() {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

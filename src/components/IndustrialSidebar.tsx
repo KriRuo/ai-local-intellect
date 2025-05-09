@@ -93,6 +93,13 @@ interface SectionProps {
   }[];
 }
 
+/**
+ * IndustrialSidebar component provides a collapsible sidebar navigation for the app.
+ *
+ * - Expands on hover, collapses otherwise
+ * - Contains navigation sections and links
+ * - Uses Framer Motion for smooth transitions
+ */
 export function IndustrialSidebar() {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const pathname = "/dashboard"; // This would normally come from usePathname()

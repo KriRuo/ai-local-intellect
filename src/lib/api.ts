@@ -42,11 +42,28 @@ export async function fetchPosts(): Promise<Post[]> {
     }
     
     const data = await response.json();
+    // Save to localStorage for offline use
+    try {
+      localStorage.setItem('cachedPosts', JSON.stringify(data.data));
+    } catch (e) {
+      // Ignore localStorage errors
+    }
     return data.data;
   } catch (error) {
     console.error('Error fetching posts:', error);
-    
-    // Return mock data as fallback when API fails
+    // Try to load from localStorage before falling back to mock data
+    try {
+      const cached = localStorage.getItem('cachedPosts');
+      if (cached) {
+        const posts = JSON.parse(cached);
+        if (Array.isArray(posts) && posts.length > 0) {
+          return posts;
+        }
+      }
+    } catch (e) {
+      // Ignore localStorage errors
+    }
+    // Return mock data as fallback when API fails and no cache
     return [
       {
         id: 1,

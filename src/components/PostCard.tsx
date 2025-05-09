@@ -174,6 +174,8 @@ export function PostCard({
               </a>
             </div>
 
+            <div className="text-sm text-muted-foreground mb-2 line-clamp-16 prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: safeHtml }} />
+
             {post.tags && post.tags.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-2 mt-1">
                 {post.tags.map((tag) => (
@@ -183,8 +185,6 @@ export function PostCard({
                 ))}
               </div>
             )}
-
-            <div className="text-sm text-muted-foreground mb-2 line-clamp-16 prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: safeHtml }} />
 
             <div className="mt-auto flex items-center text-xs text-muted-foreground">
               <Globe className="h-3 w-3 mr-1.5" />

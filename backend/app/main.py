@@ -1,8 +1,8 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Body
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Optional
 from .scrapers import rss_scraper, substack_scraper
-from .db.models import Base, Post, RssScrapeRun
+from .db.models import Base, Post, RssScrapeRun, UserPreferences
 from .db.database import engine, get_db, SessionLocal
 from sqlalchemy.orm import Session
 import logging
@@ -360,4 +360,41 @@ def tag_new_posts_endpoint(
     """
     tagging_service = TaggingService()
     stats = tagging_service.tag_new_posts(db, batch_size=batch_size, time_window=time_window)
-    return {"status": "success", "data": stats} 
+    return {"status": "success", "data": stats}
+
+class PreferencesRequest(BaseModel):
+    preferred_sources: list[str]
+    preferred_categories: list[str]
+
+class PreferencesResponse(BaseModel):
+    preferred_sources: list[str]
+    preferred_categories: list[str]
+
+# --- USER PREFERENCES ENDPOINTS ---
+@app.get("/api/preferences", response_model=PreferencesResponse)
+def get_preferences(db: Session = Depends(get_db)):
+    prefs = db.query(UserPreferences).get(1)
+    if not prefs:
+        # Return empty preferences if not set
+        return PreferencesResponse(preferred_sources=[], preferred_categories=[])
+    return PreferencesResponse(
+        preferred_sources=prefs.get_sources(),
+        preferred_categories=prefs.get_categories()
+    )
+
+@app.post("/api/preferences", response_model=PreferencesResponse)
+def set_preferences(
+    req: PreferencesRequest = Body(...),
+    db: Session = Depends(get_db)
+):
+    prefs = db.query(UserPreferences).get(1)
+    if not prefs:
+        prefs = UserPreferences(id=1)
+        db.add(prefs)
+    prefs.set_sources(req.preferred_sources)
+    prefs.set_categories(req.preferred_categories)
+    db.commit()
+    return PreferencesResponse(
+        preferred_sources=prefs.get_sources(),
+        preferred_categories=prefs.get_categories()
+    ) 

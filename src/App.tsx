@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import RssFeed from "./pages/RssFeed";
 import RssSources from "./pages/RssSources";
 import RssRuns from "./pages/RssRuns";
+import Preferences from "./pages/Preferences";
 
 /**
  * Application root component
@@ -38,6 +39,7 @@ const App = () => (
                 <Route path="/rss-feed" element={<RssFeed />} />
                 <Route path="/rss-sources" element={<RssSources />} />
                 <Route path="/rss-runs" element={<RssRuns />} />
+                <Route path="/preferences" element={<Preferences />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

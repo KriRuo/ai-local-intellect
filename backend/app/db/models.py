@@ -45,3 +45,26 @@ class RssScrapeRun(Base):
     status = Column(String, default="completed")  # completed, failed, running
     error_message = Column(String, nullable=True)
     skipped_sources_details = Column(Text, nullable=True)  # JSON: [{source, url, reason}] 
+
+class UserPreferences(Base):
+    __tablename__ = "user_preferences"
+
+    id = Column(Integer, primary_key=True, default=1)
+    preferred_sources = Column(Text, nullable=True)  # JSON list of source names
+    preferred_categories = Column(Text, nullable=True)  # JSON list of category names
+
+    def get_sources(self) -> list:
+        if self.preferred_sources:
+            return json.loads(self.preferred_sources)
+        return []
+
+    def set_sources(self, sources: list):
+        self.preferred_sources = json.dumps(sources) if sources else None
+
+    def get_categories(self) -> list:
+        if self.preferred_categories:
+            return json.loads(self.preferred_categories)
+        return []
+
+    def set_categories(self, categories: list):
+        self.preferred_categories = json.dumps(categories) if categories else None 

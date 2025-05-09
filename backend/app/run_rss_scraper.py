@@ -37,6 +37,7 @@ if os.path.exists(rss_sources_path):
     skipped_count = 0
     failed_count = 0
     article_count = 0
+    skipped_sources_details = []  # Collect skipped sources and reasons
     start_time = datetime.utcnow()
     try:
         for feed in feeds:
@@ -44,7 +45,13 @@ if os.path.exists(rss_sources_path):
             source = feed.get('source')
             platform = feed.get('platform', 'RSS')
             if not url or not source:
-                logging.warning(f"Skipped feed due to missing url or source: {feed}")
+                reason = "Missing url or source"
+                logging.warning(f"Skipped feed due to {reason}: {feed}")
+                skipped_sources_details.append({
+                    "source": source or "(unknown)",
+                    "url": url or "(unknown)",
+                    "reason": reason
+                })
                 skipped_count += 1
                 continue
             logging.info(f"Fetching RSS feed: {source} ({url}) ...")
@@ -54,7 +61,13 @@ if os.path.exists(rss_sources_path):
                 logging.info(f"Saved feed: {source} ({url})")
                 imported_count += 1
             except Exception as e:
-                logging.warning(f"Failed to import {source} ({url}): {e}")
+                reason = str(e)
+                logging.warning(f"Failed to import {source} ({url}): {reason}")
+                skipped_sources_details.append({
+                    "source": source,
+                    "url": url,
+                    "reason": reason
+                })
                 failed_count += 1
         end_time = datetime.utcnow()
         run.ended_at = end_time
@@ -64,6 +77,7 @@ if os.path.exists(rss_sources_path):
         run.num_articles_captured = article_count
         run.status = "completed"
         run.error_message = None
+        run.skipped_sources_details = json.dumps(skipped_sources_details, ensure_ascii=False)
         db.commit()
         logging.info(f"RSS import complete. Imported: {imported_count}, Skipped: {skipped_count}, Failed: {failed_count}, Total: {len(feeds)}.")
     except Exception as e:
@@ -72,6 +86,7 @@ if os.path.exists(rss_sources_path):
         run.duration_seconds = (end_time - start_time).total_seconds()
         run.status = "failed"
         run.error_message = str(e)
+        run.skipped_sources_details = json.dumps(skipped_sources_details, ensure_ascii=False)
         db.commit()
         logging.error(f"RSS scraping run failed: {e}")
     finally:

@@ -155,6 +155,12 @@ export function PostCard({
                 </div>
               </div>
 
+              {post.category && (
+                <Badge variant="secondary" className="text-xs mb-1 bg-accent/30 border-accent/40 text-accent-foreground">
+                  {post.category}
+                </Badge>
+              )}
+
               <a
                 href={post.url}
                 target="_blank"
@@ -167,6 +173,16 @@ export function PostCard({
                 </h3>
               </a>
             </div>
+
+            {post.tags && post.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2 mt-1">
+                {post.tags.map((tag) => (
+                  <Badge key={tag} variant="outline" className="text-xs bg-muted/60 border-muted-foreground/20 text-muted-foreground">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
 
             <div className="text-sm text-muted-foreground mb-2 line-clamp-16 prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: safeHtml }} />
 

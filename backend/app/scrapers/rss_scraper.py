@@ -147,29 +147,82 @@ def scrape_rss_feed(url: str, source: str, platform: str = "RSS") -> List[Dict]:
     return posts 
 
 def save_posts_to_db(db: Session, posts: list):
-    """Save posts to the database, avoiding duplicates by URL."""
+    """
+    Save posts to the database, avoiding duplicates by URL.
+    Each post is checked for uniqueness by its URL. If a post with the same URL does not exist,
+    it is added to the database. Errors for individual posts are logged and do not stop the batch.
+    If the commit fails, the transaction is rolled back and the error is raised.
+
+    Args:
+        db (Session): SQLAlchemy database session
+        posts (list): List of post dictionaries to save
+
+    Returns:
+        int: Number of new posts saved to the database
+    """
     new_posts = 0
     for post in posts:
-        if not db.query(Post).filter_by(url=post['url']).first():
-            db_post = Post(
-                source=post['source'],
-                platform=post['platform'],
-                url=post['url'],
-                title=post['title'],
-                content=post['content'],
-                summary=post.get('summary'),
-                timestamp=post['timestamp'],
-                thumbnail=post.get('thumbnail'),
-                author=post.get('author'),
-            )
-            db.add(db_post)
-            new_posts += 1
-    db.commit()
-    logging.info(f"Saved {new_posts} new posts to the database (out of {len(posts)} scraped).");
+        try:
+            if not db.query(Post).filter_by(url=post['url']).first():
+                db_post = Post(
+                    source=post['source'],
+                    platform=post['platform'],
+                    url=post['url'],
+                    title=post['title'],
+                    content=post['content'],
+                    summary=post.get('summary'),
+                    timestamp=post['timestamp'],
+                    thumbnail=post.get('thumbnail'),
+                    author=post.get('author'),
+                )
+                db.add(db_post)
+                new_posts += 1
+                logging.info(f"Added new post: {post['title']} ({post['url']})")
+            else:
+                logging.info(f"Duplicate post skipped: {post['title']} ({post['url']})")
+        except Exception as e:
+            logging.error(f"Error saving post {post.get('url')}: {str(e)}")
+            continue
+    try:
+        db.commit()
+        logging.info(f"Saved {new_posts} new posts to the database (out of {len(posts)} scraped).")
+    except Exception as e:
+        logging.error(f"Error committing posts to database: {str(e)}")
+        db.rollback()
+        raise
+    return new_posts
 
 # Utility to scrape and save in one go
 
 def scrape_and_save_rss_feed(db: Session, url: str, source: str, platform: str = "RSS"):
+    """
+    Scrape posts from an RSS feed and save them to the database. After saving, attempt to tag the
+    newly saved posts using the TaggingService. Tagging errors are caught and logged, and do not
+    prevent posts from being saved or returned. This ensures articles are always available even if
+    tagging fails.
+
+    Args:
+        db (Session): SQLAlchemy database session
+        url (str): RSS feed URL
+        source (str): Name of the source organization
+        platform (str): Platform name (default: "RSS")
+
+    Returns:
+        list: List of post dictionaries (all posts scraped, not just new ones)
+    """
+    logging.info(f"Starting scrape and save for feed: {source} ({url})")
     posts = scrape_rss_feed(url, source, platform)
-    save_posts_to_db(db, posts)
+    saved_posts = save_posts_to_db(db, posts)
+    if saved_posts > 0:
+        try:
+            logging.info(f"Attempting to tag {saved_posts} new posts...")
+            from ..services.tagging_service import TaggingService
+            tagging_service = TaggingService()
+            tagging_service.tag_new_posts(db, batch_size=saved_posts)
+            logging.info(f"Successfully tagged {saved_posts} new posts.")
+        except Exception as e:
+            logging.warning(f"Failed to tag new posts, but posts were saved: {str(e)}")
+    else:
+        logging.info("No new posts to tag.")
+    logging.info(f"Scrape and save complete for feed: {source} ({url})")
     return posts 

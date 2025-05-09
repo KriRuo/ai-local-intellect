@@ -23,7 +23,7 @@
     },
     {
         "source": "MIT AI News",
-        "url": "https://news.mit.edu/topic/artificial-intelligence2-rss.xml",
+        "url": "https://news.mit.edu/topic/mitartificial-intelligence2-rss.xml",
         "category": "AI News",
         "description": "AI news and research from MIT",
         "source_type": "Academic"
@@ -75,7 +75,7 @@
     {
         "source": "NVIDIA AI Blog",
         "platform": "RSS",
-        "url": "https://blogs.nvidia.com/blog/category/ai/feed/",
+        "url": "https://blogs.nvidia.com/blog/tag/artificial-intelligence/feed/",
         "category": "Deep Learning",
         "source_type": "Company Blog",
         "description": "Official NVIDIA blog sharing news, breakthroughs, and applications in AI and deep learning."
@@ -195,7 +195,7 @@
     {
         "source": "The Batch by Andrew Ng",
         "platform": "RSS",
-        "url": "https://www.deeplearning.ai/the-batch/",
+        "url": "https://www.deeplearning.ai/feed/",
         "category": "AI News",
         "source_type": "Newsletter",
         "description": "Weekly newsletter by Andrew Ng covering AI news, research, and industry developments."
@@ -203,7 +203,7 @@
     {
         "source": "PyTorch Blog",
         "platform": "RSS",
-        "url": "https://pytorch.org/feed.xml",
+        "url": "https://pytorch.org/feed/",
         "category": "Machine Learning",
         "source_type": "Framework",
         "description": "Updates, tutorials, and technical articles about PyTorch and deep learning."
@@ -219,7 +219,7 @@
     {
         "source": "Intel AI Blog",
         "platform": "RSS",
-        "url": "https://www.intel.com/content/www/us/en/artificial-intelligence/blog.html.rss",
+        "url": "https://www.intel.com/content/www/us/en/artificial-intelligence/blog/feed.html",
         "category": "AI Infrastructure",
         "source_type": "Company Blog",
         "description": "Technical articles about AI hardware, software, and infrastructure from Intel."
@@ -259,7 +259,7 @@
     {
         "source": "The Register - AI",
         "platform": "RSS",
-        "url": "https://www.theregister.com/Tag/artificial%20intelligence/feed/",
+        "url": "https://www.theregister.com/tag/artificial-intelligence/feed/",
         "category": "AI News",
         "source_type": "News Site",
         "description": "Technology news and analysis focusing on AI developments and industry trends."
@@ -323,7 +323,7 @@
     {
         "source": "Facebook AI Blog",
         "platform": "RSS",
-        "url": "https://ai.facebook.com/blog/rss/",
+        "url": "https://ai.facebook.com/blog/rss",
         "category": "AI Research",
         "source_type": "Company Blog",
         "description": "Research updates and technical insights from Facebook's AI research teams."
@@ -347,7 +347,7 @@
     {
         "source": "IBM Research AI",
         "platform": "RSS",
-        "url": "https://www.ibm.com/blogs/research/category/ai/feed/",
+        "url": "https://www.ibm.com/blogs/research/tag/artificial-intelligence/feed/",
         "category": "AI Research",
         "source_type": "Company Blog",
         "description": "Research updates and insights from IBM's AI research teams and projects."
@@ -387,7 +387,7 @@
     {
         "source": "Stanford HAI",
         "platform": "RSS",
-        "url": "https://hai.stanford.edu/rss.xml",
+        "url": "https://hai.stanford.edu/feed/",
         "category": "AI Ethics",
         "source_type": "Academic",
         "description": "Research and insights on human-centered AI from Stanford's Institute for Human-Centered AI."
@@ -395,7 +395,7 @@
     {
         "source": "Rasa Blog",
         "platform": "RSS",
-        "url": "https://blog.rasa.com/feed/",
+        "url": "https://blog.rasa.com/feed",
         "category": "NLP",
         "source_type": "Company Blog",
         "description": "Technical articles and tutorials about building conversational AI and chatbots."
@@ -419,7 +419,7 @@
     {
         "source": "Wired AI",
         "platform": "RSS",
-        "url": "https://www.wired.com/tag/artificial-intelligence/feed/",
+        "url": "https://www.wired.com/tag/artificial-intelligence/feed",
         "category": "AI News",
         "source_type": "Magazine",
         "description": "In-depth coverage of AI developments and their impact on society and technology."

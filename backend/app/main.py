@@ -12,6 +12,9 @@ import subprocess
 from pydantic import BaseModel
 from .scrapers.rss_scraper import RSSFeedError, InvalidFeedURLError, FeedParsingError, NoEntriesFoundError
 import sys
+from fastapi.responses import PlainTextResponse
+import threading
+from .services.tagging_service import TaggingService
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -41,15 +44,105 @@ logging.basicConfig(
 )
 logging.info("🚀 FastAPI backend is starting up...")
 
-# Automatically import all RSS feeds on startup
-rss_sources_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rss_sources.json')
-if os.path.exists(rss_sources_path):
+# Remove the automatic RSS feed import on startup (delete the block that starts with: # Automatically import all RSS feeds on startup)
+
+# --- MENU LOGIC ---
+def run_menu():
+    while True:
+        print("\nBackend is running!")
+        print("\nPlease select an option:")
+        print("0. Run all")
+        print("1. Run RSS scraping")
+        print("2. Run Tagging service")
+        print("3. Exit")
+        print()
+        choice = input("Enter your choice (0-3): ")
+        if choice == "0":
+            print("Running RSS scraping...")
+            rss_sources_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rss_sources.json')
+            if os.path.exists(rss_sources_path):
+                with open(rss_sources_path, 'r', encoding='utf-8') as f:
+                    feeds = json.load(f)
+                db = SessionLocal()
+                imported_count = 0
+                skipped_count = 0
+                failed_count = 0
+                for feed in feeds:
+                    url = feed.get('url')
+                    source = feed.get('source')
+                    platform = feed.get('platform', 'RSS')
+                    if not url or not source:
+                        logging.warning(f"Skipped feed due to missing url or source: {feed}")
+                        skipped_count += 1
+                        continue
+                    logging.info(f"Fetching RSS feed: {source} ({url}) ...")
+                    try:
+                        rss_scraper.scrape_and_save_rss_feed(db, url, source, platform)
+                        logging.info(f"Saved feed: {source} ({url})")
+                        imported_count += 1
+                    except Exception as e:
+                        logging.warning(f"Failed to import {source} ({url}): {e}")
+                        failed_count += 1
+                db.close()
+                logging.info(f"RSS import complete. Imported: {imported_count}, Skipped: {skipped_count}, Failed: {failed_count}, Total: {len(feeds)}.")
+            print("Starting post tagging process...")
+            subprocess.Popen([sys.executable, "-m", "backend.app.scripts.tag_posts"])
+        elif choice == "1":
+            print("Running RSS scraping...")
+            rss_sources_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rss_sources.json')
+            if os.path.exists(rss_sources_path):
+                with open(rss_sources_path, 'r', encoding='utf-8') as f:
+                    feeds = json.load(f)
+                db = SessionLocal()
+                imported_count = 0
+                skipped_count = 0
+                failed_count = 0
+                for feed in feeds:
+                    url = feed.get('url')
+                    source = feed.get('source')
+                    platform = feed.get('platform', 'RSS')
+                    if not url or not source:
+                        logging.warning(f"Skipped feed due to missing url or source: {feed}")
+                        skipped_count += 1
+                        continue
+                    logging.info(f"Fetching RSS feed: {source} ({url}) ...")
+                    try:
+                        rss_scraper.scrape_and_save_rss_feed(db, url, source, platform)
+                        logging.info(f"Saved feed: {source} ({url})")
+                        imported_count += 1
+                    except Exception as e:
+                        logging.warning(f"Failed to import {source} ({url}): {e}")
+                        failed_count += 1
+                db.close()
+                logging.info(f"RSS import complete. Imported: {imported_count}, Skipped: {skipped_count}, Failed: {failed_count}, Total: {len(feeds)}.")
+        elif choice == "2":
+            print("Starting post tagging process...")
+            subprocess.Popen([sys.executable, "-m", "backend.app.scripts.tag_posts"])
+        elif choice == "3":
+            print("Exiting...")
+            os._exit(0)
+        else:
+            print("Invalid choice. Please try again.")
+
+# Start the menu in a separate thread
+menu_thread = threading.Thread(target=run_menu, daemon=True)
+menu_thread.start()
+
+# Remove the automatic RSS feed importing code and add a new endpoint
+@app.post("/api/scrape/rss/import-all")
+def import_all_rss_feeds(db: Session = Depends(get_db)):
+    rss_sources_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rss_sources.json')
+    if not os.path.exists(rss_sources_path):
+        raise HTTPException(status_code=404, detail="rss_sources.json not found")
+    
     with open(rss_sources_path, 'r', encoding='utf-8') as f:
         feeds = json.load(f)
-    db = SessionLocal()
+    
     imported_count = 0
     skipped_count = 0
     failed_count = 0
+    failed_feeds = []
+    
     for feed in feeds:
         url = feed.get('url')
         source = feed.get('source')
@@ -66,8 +159,18 @@ if os.path.exists(rss_sources_path):
         except Exception as e:
             logging.warning(f"Failed to import {source} ({url}): {e}")
             failed_count += 1
-    db.close()
-    logging.info(f"RSS import complete. Imported: {imported_count}, Skipped: {skipped_count}, Failed: {failed_count}, Total: {len(feeds)}.")
+            failed_feeds.append({"source": source, "url": url, "error": str(e)})
+    
+    return {
+        "status": "success",
+        "data": {
+            "imported": imported_count,
+            "skipped": skipped_count,
+            "failed": failed_count,
+            "total": len(feeds),
+            "failed_feeds": failed_feeds
+        }
+    }
 
 class RSSRequest(BaseModel):
     url: str
@@ -130,6 +233,8 @@ def get_posts(db: Session = Depends(get_db)):
             "author": post.author,
             "created_at": post.created_at.isoformat() if post.created_at else None,
             "updated_at": post.updated_at.isoformat() if post.updated_at else None,
+            "tags": post.get_tags() if hasattr(post, 'get_tags') else [],
+            "category": post.category,
         }
     if posts:
         return {"status": "success", "data": [post_to_dict(p) for p in posts]}
@@ -144,8 +249,7 @@ def get_posts(db: Session = Depends(get_db)):
 @app.post("/api/scrape/rss/trigger")
 def trigger_rss_scraper():
     try:
-        script_path = os.path.join(os.path.dirname(__file__), "run_rss_scraper.py")
-        subprocess.Popen(["python", script_path])
+        subprocess.Popen([sys.executable, "-m", "backend.app.run_rss_scraper"])
         return {"status": "started", "message": "RSS scraping script triggered."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -219,4 +323,41 @@ def scrape_and_save_substack(
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok"} 
+    return {"status": "ok"}
+
+@app.get("/api/rss-runs/{run_id}/skipped-sources-md", response_class=PlainTextResponse)
+def export_skipped_sources_markdown(run_id: int, db: Session = Depends(get_db)):
+    run = db.query(RssScrapeRun).filter(RssScrapeRun.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="RSS run not found")
+    if not run.skipped_sources_details:
+        return "# Skipped Sources\n\nNo skipped sources for this run."
+    try:
+        skipped = json.loads(run.skipped_sources_details)
+    except Exception:
+        return "# Skipped Sources\n\nCould not parse skipped sources details."
+    if not skipped:
+        return "# Skipped Sources\n\nNo skipped sources for this run."
+    md = ["# Skipped Sources\n", "| Source | URL | Reason |", "|--------|-----|--------|"]
+    for item in skipped:
+        src = (item.get("source") or "-").replace("|", "\\|")
+        url = (item.get("url") or "-").replace("|", "\\|")
+        reason = (item.get("reason") or "-").replace("|", "\\|").replace("\n", " ")
+        md.append(f"| {src} | {url} | {reason} |")
+    return "\n".join(md)
+
+@app.post("/api/tag-new-posts")
+def tag_new_posts_endpoint(
+    batch_size: int = 10,
+    time_window: int = 5,
+    db: Session = Depends(get_db)
+):
+    """
+    Tag new posts using the Llama 4 Maverick API via TaggingService.
+    - batch_size: number of posts to process per call (default 10)
+    - time_window: number of minutes to look back for new posts (default 5)
+    Returns tagging statistics.
+    """
+    tagging_service = TaggingService()
+    stats = tagging_service.tag_new_posts(db, batch_size=batch_size, time_window=time_window)
+    return {"status": "success", "data": stats} 

@@ -85,9 +85,12 @@ const RssRuns: React.FC = () => {
         <p className="text-muted-foreground">History of all RSS scraping runs and their results</p>
       </div>
       <Separator className="my-2" />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {runs.map((run) => (
-          <Card key={run.id} className="h-full transition-all hover:shadow-md">
+      <div
+        className="flex flex-col gap-4 max-h-[70vh] overflow-y-auto pr-2"
+        style={{ scrollbarGutter: 'stable' }}
+      >
+        {[...runs].sort((a, b) => b.id - a.id).map((run) => (
+          <Card key={run.id} className="w-full transition-all hover:shadow-md">
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-lg font-medium flex items-center gap-2">
                 {statusIcon(run.status)}
@@ -104,7 +107,7 @@ const RssRuns: React.FC = () => {
                   <Badge variant="outline">Duration: {formatDuration(run.duration_seconds)}</Badge>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-2 text-sm mt-2">
+              <div className="grid grid-cols-2 gap-2 text-sm mt-2 max-w-xl">
                 <div>Total sources:</div>
                 <div className="font-semibold">{run.num_sources_total}</div>
                 <div>Sources captured:</div>

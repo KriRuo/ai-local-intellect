@@ -1,12 +1,24 @@
 import os
 import json
 import logging
-from datetime import datetime
+import sys
+from datetime import datetime, timezone
 from backend.app.db.database import SessionLocal
 from backend.app.db.models import RssScrapeRun
 from backend.app.scrapers.rss_scraper import scrape_and_save_rss_feed
 
-logging.basicConfig(level=logging.INFO)
+# Configure logging
+log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, 'rss_scraper.log')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(name)s %(message)s',
+    handlers=[
+        logging.FileHandler(log_file, mode='a', encoding='utf-8'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 
 rss_sources_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rss_sources.json')
 if os.path.exists(rss_sources_path):

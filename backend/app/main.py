@@ -11,6 +11,7 @@ import json
 import subprocess
 from pydantic import BaseModel
 from .scrapers.rss_scraper import RSSFeedError, InvalidFeedURLError, FeedParsingError, NoEntriesFoundError
+import sys
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -27,7 +28,17 @@ app.add_middleware(
 )
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, 'backend.log')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(name)s %(message)s',
+    handlers=[
+        logging.FileHandler(log_file, mode='a', encoding='utf-8'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 logging.info("🚀 FastAPI backend is starting up...")
 
 # Automatically import all RSS feeds on startup
@@ -204,4 +215,8 @@ def scrape_and_save_substack(
             } for p in posts
         ]}
     except substack_scraper.SubstackScraperError as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"} 

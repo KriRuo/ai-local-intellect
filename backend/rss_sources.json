@@ -15,10 +15,11 @@
     },
     {
         "source": "Google AI Blog",
-        "url": "http://googleaiblog.blogspot.com/atom.xml",
-        "category": "AI Research",
-        "description": "Latest research and developments from Google AI",
-        "source_type": "Industry"
+        "platform": "RSS",
+        "url": "https://blog.google/technology/ai/rss/",
+        "category": "AI News",
+        "source_type": "Company Blog",
+        "description": "Official Google AI blog, featuring news, research, and updates on artificial intelligence and technology."
     },
     {
         "source": "MIT AI News",
@@ -486,5 +487,21 @@
         "category": "Machine Learning",
         "source_type": "Academic",
         "description": "Research updates and insights from Carnegie Mellon University's Machine Learning Department."
+    },
+    {
+        "source": "NVIDIA Blog (Feedburner)",
+        "platform": "RSS",
+        "url": "https://feeds.feedburner.com/nvidiablog",
+        "category": "AI News",
+        "source_type": "Company Blog",
+        "description": "Official NVIDIA blog via Feedburner, covering AI, GPU, and technology news."
+    },
+    {
+        "source": "Microsoft Source",
+        "platform": "RSS",
+        "url": "https://news.microsoft.com/source/feed/",
+        "category": "AI News",
+        "source_type": "Company Blog",
+        "description": "Official Microsoft Source blog, featuring news, updates, and stories on AI, cloud, and technology."
     }
 ] 

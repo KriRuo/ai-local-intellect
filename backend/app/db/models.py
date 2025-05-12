@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Float
+from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Float, ForeignKey
 from sqlalchemy.sql import func
 from .database import Base
 import json
@@ -20,6 +20,7 @@ class Post(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     tags = Column(Text, nullable=True)  # Store as JSON string
     category = Column(String, nullable=True)
+    tag_status = Column(String, default="pending")  # pending, tagged, error
 
     def get_tags(self) -> list:
         """Get tags as a list"""
@@ -68,3 +69,12 @@ class UserPreferences(Base):
 
     def set_categories(self, categories: list):
         self.preferred_categories = json.dumps(categories) if categories else None 
+
+class PipelineFailure(Base):
+    __tablename__ = "pipeline_failures"
+
+    id = Column(Integer, primary_key=True, index=True)
+    article_id = Column(Integer, ForeignKey("posts.id"))
+    stage = Column(String)  # 'scrape' or 'tag'
+    error_message = Column(Text)
+    occurred_at = Column(DateTime(timezone=True), server_default=func.now()) 

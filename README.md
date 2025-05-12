@@ -198,3 +198,40 @@ To connect a domain, navigate to Project > Settings > Domains and click Connect 
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
 
+## Model Setup
+
+The application uses the Sentence Transformers model for text embeddings. The model files are stored in a dedicated directory:
+
+- Windows: `%USERPROFILE%\.ai-local-intellect\models`
+- Linux/Mac: `~/.ai-local-intellect/models`
+
+The first time you run the application, it will automatically download the required model files (about 90MB).
+
+### Virtual Environment
+
+It's recommended to use a virtual environment:
+
+```bash
+# Create virtual environment
+python -m venv .venv
+
+# Activate virtual environment
+# Windows
+.\.venv\Scripts\activate
+# Linux/Mac
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+This setup provides several benefits:
+
+1. Model files are stored in a user-specific location, not in the repository
+2. The virtual environment keeps dependencies isolated
+3. The model cache is shared between different projects using the same models
+4. Git won't track large model files
+5. Easy to clear cache if needed (just delete the .ai-local-intellect directory)
+
+Would you like me to help you implement these changes? We can also add some utility scripts to manage the model cache (download, clear, etc.) if you'd find that helpful.
+

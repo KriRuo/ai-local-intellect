@@ -19,4 +19,4 @@ python -m backend.app.main
 pause
 
 
-::use this for running manually uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8081
+::use this for running manually uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8081 

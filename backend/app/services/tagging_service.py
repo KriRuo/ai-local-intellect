@@ -10,6 +10,7 @@ from ..db.models import Post
 import logging
 from openai import OpenAI
 import re
+from ..utils.pipeline_logger import PipelineLogger
 
 load_dotenv()
 
@@ -89,29 +90,41 @@ class TaggingService:
         Returns:
             dict: Statistics about the tagging process, including total processed, successful, and failed counts.
         """
-        stats = {
-            "total_processed": 0,
-            "successful": 0,
-            "failed": 0
-        }
+        logger = PipelineLogger(db)
+        run = logger.start_run(source="tagging_service", run_type="tagging")
         
-        # Get the last N posts that don't have tags yet
-        new_posts = db.query(Post).filter(
-            Post.tags == None
-        ).order_by(Post.created_at.desc()).limit(batch_size).all()
-        
-        for post in new_posts:
-            try:
-                tags, category = self.get_tags_and_category(post.content)
-                post.set_tags(tags)
-                post.category = category
-                stats["successful"] += 1
-                logging.info(f"Tagged post {post.id}: {tags}, {category}")
-            except Exception as e:
-                logging.error(f"Error tagging post {post.id}: {str(e)}")
-                stats["failed"] += 1
-            finally:
-                stats["total_processed"] += 1
-                
-        db.commit()
-        return stats 
+        try:
+            # Get the last N posts that don't have tags yet
+            new_posts = db.query(Post).filter(
+                Post.tags == None
+            ).order_by(Post.created_at.desc()).limit(batch_size).all()
+            
+            for post in new_posts:
+                try:
+                    tags, category = self.get_tags_and_category(post.content)
+                    post.set_tags(tags)
+                    post.category = category
+                    logger.log_article_processed(
+                        article={"url": post.url, "title": post.title},
+                        status="success",
+                        stage="tagging"
+                    )
+                    logging.info(f"Tagged post {post.id}: {tags}, {category}")
+                except Exception as e:
+                    error_msg = str(e)
+                    logger.log_article_processed(
+                        article={"url": post.url, "title": post.title},
+                        status="error",
+                        stage="tagging",
+                        error_message=error_msg
+                    )
+                    logging.error(f"Error tagging post {post.id}: {error_msg}")
+            
+            db.commit()
+            logger.end_run(status="completed")
+            return logger.stats
+
+        except Exception as e:
+            error_msg = str(e)
+            logger.end_run(status="failed", error_message=error_msg)
+            raise 

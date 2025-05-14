@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { NavigationProvider } from "@/contexts/NavigationContext";
 import { Layout } from "./components/Layout";
@@ -13,6 +13,7 @@ import RssSources from "./pages/RssSources";
 import RssRuns from "./pages/RssRuns";
 import Preferences from "./pages/Preferences";
 import WebFeed from "./pages/WebFeed";
+import SavedContent from "./pages/SavedContent";
 
 /**
  * Application root component
@@ -35,6 +36,10 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Layout>
+              <nav className="flex gap-4 p-4 bg-gray-900 text-white">
+                <Link to="/">Feed</Link>
+                <Link to="/saved">Saved Content</Link>
+              </nav>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/rss-feed" element={<RssFeed />} />
@@ -42,6 +47,7 @@ const App = () => (
                 <Route path="/rss-sources" element={<RssSources />} />
                 <Route path="/rss-runs" element={<RssRuns />} />
                 <Route path="/preferences" element={<Preferences />} />
+                <Route path="/saved" element={<SavedContent />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

@@ -8,6 +8,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { Post } from "@/lib/api";
 import DOMPurify from "dompurify";
 import { toZonedTime } from "date-fns-tz";
+import { useState } from "react";
+import { BookmarkIcon as OutlineBookmark } from "@heroicons/react/24/outline";
+import { BookmarkIcon as SolidBookmark } from "@heroicons/react/24/solid";
 
 /**
  * Utility to strip HTML tags from a string
@@ -73,16 +76,25 @@ const postCardVariants = cva("group transition-all duration-300", {
  * @param post - Post object to display
  * @param className - Optional CSS class
  * @param variant - Card style variant
+ * @param isSaved - Optionally pass if this post is already saved
+ * @param onSaved - Callback after saving
  */
 export function PostCard({
   post,
   className,
   variant = "gradient",
+  isSaved,
+  onSaved,
 }: {
   post: Post;
   className?: string;
   variant?: "default" | "gradient" | "lifted" | "neubrutalism" | "corners";
+  isSaved?: boolean;
+  onSaved?: () => void;
 }) {
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(isSaved);
+
   // Convert timestamp to Switzerland time zone
   const zurichTime = React.useMemo(() => {
     try {
@@ -114,6 +126,21 @@ export function PostCard({
     const truncated = truncateText(noImages, 1200);
     return DOMPurify.sanitize(truncated);
   }, [post.content]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const res = await fetch("/api/saved", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ post_id: post.id }),
+    });
+    if (res.ok) {
+      setSaved(true);
+      onSaved?.();
+      // Optionally show a toast here
+    }
+    setSaving(false);
+  };
 
   return (
     <Card
@@ -191,6 +218,20 @@ export function PostCard({
               <Globe className="h-3 w-3 mr-1.5" />
               <span>{post.platform}</span>
             </div>
+
+            <button
+              className="absolute bottom-3 right-3 z-10 bg-white/80 rounded-full p-1 shadow hover:bg-blue-50 transition-colors"
+              onClick={handleSave}
+              disabled={saving || saved}
+              title={saved ? "Saved" : "Save for later"}
+              aria-label={saved ? "Saved" : "Save for later"}
+            >
+              {saved ? (
+                <SolidBookmark className="w-6 h-6 text-blue-500" />
+              ) : (
+                <OutlineBookmark className="w-6 h-6 text-gray-400 hover:text-blue-500" />
+              )}
+            </button>
           </div>
         </CardContent>
       </div>

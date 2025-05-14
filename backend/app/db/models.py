@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Float, ForeignKey
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from .database import Base
 import json
 
@@ -78,3 +79,12 @@ class PipelineFailure(Base):
     stage = Column(String)  # 'scrape' or 'tag'
     error_message = Column(Text)
     occurred_at = Column(DateTime(timezone=True), server_default=func.now()) 
+
+class SavedPost(Base):
+    __tablename__ = "saved_posts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
+    saved_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    post = relationship("Post") 

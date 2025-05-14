@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, Body
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Optional
 from .scrapers import rss_scraper, substack_scraper
-from .db.models import Base, Post, RssScrapeRun, UserPreferences
+from .db.models import Base, Post, RssScrapeRun, UserPreferences, SavedPost
 from .db.database import engine, get_db, SessionLocal
 from sqlalchemy.orm import Session
 import logging
@@ -271,27 +271,28 @@ def scrape_and_save_rss(req: RSSRequest, db: Session = Depends(get_db)):
         logger.error(f"Unexpected error in RSS scraping: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
+def post_to_dict(post):
+    return {
+        "id": post.id,
+        "source": post.source,
+        "platform": post.platform,
+        "url": post.url,
+        "title": post.title,
+        "content": post.content,
+        "summary": post.summary,
+        "timestamp": post.timestamp.isoformat() if post.timestamp else None,
+        "thumbnail": post.thumbnail,
+        "author": post.author,
+        "created_at": post.created_at.isoformat() if post.created_at else None,
+        "updated_at": post.updated_at.isoformat() if post.updated_at else None,
+        "tags": post.get_tags() if hasattr(post, 'get_tags') else [],
+        "category": post.category,
+    }
+
 @app.get("/api/posts")
 def get_posts(db: Session = Depends(get_db)):
     posts = db.query(Post).order_by(Post.timestamp.desc()).all()
     logging.info(f"Fetched {len(posts)} posts from the database.")
-    def post_to_dict(post):
-        return {
-            "id": post.id,
-            "source": post.source,
-            "platform": post.platform,
-            "url": post.url,
-            "title": post.title,
-            "content": post.content,
-            "summary": post.summary,
-            "timestamp": post.timestamp.isoformat() if post.timestamp else None,
-            "thumbnail": post.thumbnail,
-            "author": post.author,
-            "created_at": post.created_at.isoformat() if post.created_at else None,
-            "updated_at": post.updated_at.isoformat() if post.updated_at else None,
-            "tags": post.get_tags() if hasattr(post, 'get_tags') else [],
-            "category": post.category,
-        }
     if posts:
         return {"status": "success", "data": [post_to_dict(p) for p in posts]}
     # Fallback to rss_feeds.json if DB is empty
@@ -456,4 +457,54 @@ def set_preferences(
     return PreferencesResponse(
         preferred_sources=prefs.get_sources(),
         preferred_categories=prefs.get_categories()
-    ) 
+    )
+
+class SavedPostRequest(BaseModel):
+    post_id: int
+
+class SavedPostResponse(BaseModel):
+    id: int
+    post_id: int
+    saved_at: str
+    post: dict
+
+@app.post("/api/saved", response_model=SavedPostResponse)
+def save_post(req: SavedPostRequest, db: Session = Depends(get_db)):
+    post = db.query(Post).filter(Post.id == req.post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    saved_post = SavedPost(post_id=post.id)
+    db.add(saved_post)
+    db.commit()
+    db.refresh(saved_post)
+    return {
+        "id": saved_post.id,
+        "post_id": saved_post.post_id,
+        "saved_at": saved_post.saved_at.isoformat(),
+        "post": post_to_dict(post)
+    }
+
+@app.get("/api/saved", response_model=List[SavedPostResponse])
+def get_saved_posts(db: Session = Depends(get_db)):
+    saved_posts = db.query(SavedPost).order_by(SavedPost.saved_at.desc()).all()
+    result = []
+    for saved in saved_posts:
+        post = db.query(Post).filter(Post.id == saved.post_id).first()
+        if post:
+            result.append({
+                "id": saved.id,
+                "post_id": saved.post_id,
+                "saved_at": saved.saved_at.isoformat(),
+                "post": post_to_dict(post)
+            })
+    return result
+
+@app.delete("/api/saved/{post_id}")
+def delete_saved_post(post_id: int, db: Session = Depends(get_db)):
+    saved_posts = db.query(SavedPost).filter(SavedPost.post_id == post_id).all()
+    if not saved_posts:
+        raise HTTPException(status_code=404, detail="Saved post not found")
+    for saved in saved_posts:
+        db.delete(saved)
+    db.commit()
+    return {"detail": "Deleted"} 

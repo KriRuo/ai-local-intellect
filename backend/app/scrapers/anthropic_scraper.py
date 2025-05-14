@@ -29,7 +29,7 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 from playwright.sync_api import sync_playwright, TimeoutError
 from backend.app.db.models import Post
-from app.db.database import SessionLocal
+from backend.app.db.database import SessionLocal
 import logging
 import argparse
 
@@ -153,7 +153,7 @@ def parse_text_date(date_text: str) -> Optional[datetime]:
         print(f" Failed to parse: {date_text} ({str(e)})")
         return None
 
-def scrape_anthropic_news(weeks_back=None, scrape_until_known=False, limit_by_posts=False, post_limit=None) -> List[Dict]:
+def scrape_anthropic_news(weeks_back=None, scrape_until_known=False, limit_by_posts=False, post_limit=None, page=None) -> List[Dict]:
     """
     Scrape Anthropic news articles with configurable limits and options.
     Now loads the listing page URL from web_sources.json and discovers article links dynamically.
@@ -175,6 +175,7 @@ def scrape_anthropic_news(weeks_back=None, scrape_until_known=False, limit_by_po
         scrape_until_known (bool): Stop when finding a known article
         limit_by_posts (bool): Whether to limit by number of posts
         post_limit (int): How many posts to scrape (if limit_by_posts=True)
+        page: Optional Playwright page object for dependency injection (for testing)
     
     Returns:
         List[Dict]: List of processed articles with the following structure:
@@ -202,216 +203,215 @@ def scrape_anthropic_news(weeks_back=None, scrape_until_known=False, limit_by_po
 
     print(f" Starting Anthropic news scraper using listing page: {listing_url}")
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(
-            viewport={"width": 1920, "height": 1080},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-        )
-        page = context.new_page()
+    # If no page is provided, create one using Playwright
+    if page is None:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
 
-        try:
-            # Visit the listing page
-            print(f" Visiting listing page: {listing_url}")
-            page.goto(listing_url, wait_until="networkidle")
+    try:
+        # Visit the listing page
+        print(f" Visiting listing page: {listing_url}")
+        page.goto(listing_url, wait_until="networkidle")
 
-            # Try multiple possible selectors for news links
-            selectors = [
-                "a[data-testid='link-card']",
-                "a[href*='/news/']",
-                "main a[href]",
-                "[role='article'] a"
-            ]
+        # Try multiple possible selectors for news links
+        selectors = [
+            "a[data-testid='link-card']",
+            "a[href*='/news/']",
+            "main a[href]",
+            "[role='article'] a"
+        ]
 
-            article_links = []
-            for selector in selectors:
-                try:
-                    print(f" Trying to find articles with selector: {selector}")
-                    page.wait_for_selector(selector, timeout=5000)
-                    links = page.query_selector_all(selector)
-                    if links:
-                        if limit_by_posts and post_limit is not None:
-                            article_links = links[:post_limit]
-                            print(f" Limited to {post_limit} articles using selector: {selector}")
+        article_links = []
+        for selector in selectors:
+            try:
+                print(f" Trying to find articles with selector: {selector}")
+                page.wait_for_selector(selector, timeout=5000)
+                links = page.query_selector_all(selector)
+                if links:
+                    if limit_by_posts and post_limit is not None:
+                        article_links = links[:post_limit]
+                        print(f" Limited to {post_limit} articles using selector: {selector}")
+                    else:
+                        article_links = links
+                        print(f" Found {len(links)} articles using selector: {selector}")
+                    break
+            except TimeoutError:
+                continue
+
+        if not article_links:
+            raise Exception("Could not find any news articles with known selectors")
+
+        # Extract hrefs before navigating away
+        article_urls = []
+        for link in article_links:
+            try:
+                href = link.get_attribute("href")
+                if href and ("/news/" in href or "/blog/" in href):
+                    article_urls.append(href)
+            except Exception:
+                continue
+
+        print(f" Found {len(article_urls)} valid article URLs")
+
+        posts_scraped = 0
+        for url in article_urls:
+            try:
+                full_url = url if url.startswith("http") else f"https://www.anthropic.com{url}"
+                
+                # Check if URL exists and we're in scrape_until_known mode
+                if scrape_until_known and url_exists(full_url):
+                    print(f" Found known article: {full_url}")
+                    print(" Stopping scrape as requested")
+                    break
+                
+                print(f" Processing article: {full_url}")
+                
+                page.goto(full_url, wait_until="networkidle")
+                
+                # Try multiple selectors for title
+                title_text = ""
+                for title_selector in ["h1", "[role='heading']", "main h1"]:
+                    title = page.query_selector(title_selector)
+                    if title:
+                        title_text = title.inner_text().strip()
+                        break
+
+                # Get published date from div after title
+                published_date = None
+                date_text = None
+                date_el = page.query_selector("h1 + div")
+                if date_el:
+                    date_text = date_el.inner_text().strip()
+                    if '●' in date_text:
+                        date_text_for_parse = date_text.split('●')[0].strip()  # e.g., "24. Feb. 2025"
+                        parsed_date = parse_text_date(date_text_for_parse)
+                        if parsed_date:
+                            published_date = parsed_date.isoformat()
+                            print(f" Found publication date: {published_date}")
                         else:
-                            article_links = links
-                            print(f" Found {len(links)} articles using selector: {selector}")
-                        break
-                except TimeoutError:
-                    continue
+                            print(f" Failed to parse date: {date_text_for_parse}")
 
-            if not article_links:
-                raise Exception("Could not find any news articles with known selectors")
-
-            # Extract hrefs before navigating away
-            article_urls = []
-            for link in article_links:
-                try:
-                    href = link.get_attribute("href")
-                    if href and ("/news/" in href or "/blog/" in href):
-                        article_urls.append(href)
-                except Exception:
-                    continue
-
-            print(f" Found {len(article_urls)} valid article URLs")
-
-            posts_scraped = 0
-            for url in article_urls:
-                try:
-                    full_url = url if url.startswith("http") else f"https://www.anthropic.com{url}"
-                    
-                    # Check if URL exists and we're in scrape_until_known mode
-                    if scrape_until_known and url_exists(full_url):
-                        print(f" Found known article: {full_url}")
-                        print(" Stopping scrape as requested")
-                        break
-                    
-                    print(f" Processing article: {full_url}")
-                    
-                    page.goto(full_url, wait_until="networkidle")
-                    
-                    # Try multiple selectors for title
-                    title_text = ""
-                    for title_selector in ["h1", "[role='heading']", "main h1"]:
-                        title = page.query_selector(title_selector)
-                        if title:
-                            title_text = title.inner_text().strip()
+                # Get content from article element
+                content_text = ""
+                article = page.query_selector("article")
+                if article:
+                    content_text = article.inner_text().strip()
+                    # Remove duplicate title if it appears at the start
+                    if title_text and content_text.startswith(title_text):
+                        content_text = content_text[len(title_text):].strip()
+                    # Remove date_text if it appears at the start
+                    if date_text and content_text.startswith(date_text):
+                        content_text = content_text[len(date_text):].strip()
+                    # Remove duplicate URL if it appears at the start
+                    if content_text.startswith(full_url):
+                        content_text = content_text[len(full_url):].strip()
+                    # Remove metadata lines (e.g., "Announcements", "5 min read", etc.)
+                    lines = content_text.split('\n')
+                    cleaned_lines = []
+                    for line in lines:
+                        line = line.strip()
+                        # Skip empty lines and metadata
+                        if not line or line in ['Announcements', 'Product', 'Policy', 'Societal Impacts']:
+                            continue
+                        # Skip lines with read time
+                        if '●' in line and ('min read' in line or 'read' in line):
+                            continue
+                        # Skip duplicate title
+                        if title_text and line == title_text:
+                            continue
+                        cleaned_lines.append(line)
+                    content_text = ' '.join(cleaned_lines)
+                
+                # Fallback to current time if no date found
+                if not published_date:
+                    published_date = datetime.utcnow().isoformat()
+                    print(" Could not find article date, using current time")
+                
+                # Check if article is too old
+                if cutoff_date is not None:
+                    try:
+                        article_date = datetime.fromisoformat(published_date.replace('Z', '+00:00'))
+                        if article_date < cutoff_date:
+                            print(f" Article from {article_date} is older than cutoff {cutoff_date}")
+                            print(" Stopping scrape due to age")
                             break
+                    except ValueError:
+                        # If we can't parse the date, continue but warn
+                        print(f" Could not parse article date: {published_date}")
+                
+                # Extract thumbnail
+                thumbnail = None
 
-                    # Get published date from div after title
-                    published_date = None
-                    date_text = None
-                    date_el = page.query_selector("h1 + div")
-                    if date_el:
-                        date_text = date_el.inner_text().strip()
-                        if '●' in date_text:
-                            date_text_for_parse = date_text.split('●')[0].strip()  # e.g., "24. Feb. 2025"
-                            parsed_date = parse_text_date(date_text_for_parse)
-                            if parsed_date:
-                                published_date = parsed_date.isoformat()
-                                print(f" Found publication date: {published_date}")
-                            else:
-                                print(f" Failed to parse date: {date_text_for_parse}")
+                # Try to get the first image in the article
+                img_tag = page.query_selector("article img")
+                if img_tag:
+                    thumbnail = img_tag.get_attribute("src")
+                    thumbnail = clean_thumbnail_url(thumbnail)
 
-                    # Get content from article element
-                    content_text = ""
-                    article = page.query_selector("article")
-                    if article:
-                        content_text = article.inner_text().strip()
-                        # Remove duplicate title if it appears at the start
-                        if title_text and content_text.startswith(title_text):
-                            content_text = content_text[len(title_text):].strip()
-                        # Remove date_text if it appears at the start
-                        if date_text and content_text.startswith(date_text):
-                            content_text = content_text[len(date_text):].strip()
-                        # Remove duplicate URL if it appears at the start
-                        if content_text.startswith(full_url):
-                            content_text = content_text[len(full_url):].strip()
-                        # Remove metadata lines (e.g., "Announcements", "5 min read", etc.)
-                        lines = content_text.split('\n')
-                        cleaned_lines = []
-                        for line in lines:
-                            line = line.strip()
-                            # Skip empty lines and metadata
-                            if not line or line in ['Announcements', 'Product', 'Policy', 'Societal Impacts']:
-                                continue
-                            # Skip lines with read time
-                            if '●' in line and ('min read' in line or 'read' in line):
-                                continue
-                            # Skip duplicate title
-                            if title_text and line == title_text:
-                                continue
-                            cleaned_lines.append(line)
-                        content_text = ' '.join(cleaned_lines)
-                    
-                    # Fallback to current time if no date found
-                    if not published_date:
-                        published_date = datetime.utcnow().isoformat()
-                        print(" Could not find article date, using current time")
-                    
-                    # Check if article is too old
-                    if cutoff_date is not None:
-                        try:
-                            article_date = datetime.fromisoformat(published_date.replace('Z', '+00:00'))
-                            if article_date < cutoff_date:
-                                print(f" Article from {article_date} is older than cutoff {cutoff_date}")
-                                print(" Stopping scrape due to age")
-                                break
-                        except ValueError:
-                            # If we can't parse the date, continue but warn
-                            print(f" Could not parse article date: {published_date}")
-                    
-                    # Extract thumbnail
-                    thumbnail = None
-
-                    # Try to get the first image in the article
-                    img_tag = page.query_selector("article img")
-                    if img_tag:
-                        thumbnail = img_tag.get_attribute("src")
+                # Fallback: check for og:image meta tag
+                if not thumbnail:
+                    og_image = page.query_selector("meta[property='og:image']")
+                    if og_image:
+                        thumbnail = og_image.get_attribute("content")
                         thumbnail = clean_thumbnail_url(thumbnail)
 
-                    # Fallback: check for og:image meta tag
-                    if not thumbnail:
-                        og_image = page.query_selector("meta[property='og:image']")
-                        if og_image:
-                            thumbnail = og_image.get_attribute("content")
-                            thumbnail = clean_thumbnail_url(thumbnail)
-
-                    # Final fallback: placeholder
-                    if not thumbnail:
-                        thumbnail = 'https://placehold.co/64x64?text=No+Image'
-                    
-                    # Extract author
-                    author = None
-
-                    # Try common selectors for author in the article
-                    author_selectors = [
-                        "article [class*='author']",
-                        "article .byline",
-                        "article [rel='author']"
-                    ]
-                    for selector in author_selectors:
-                        author_el = page.query_selector(selector)
-                        if author_el:
-                            author = author_el.inner_text().strip()
-                            break
-
-                    # Fallback: meta tag in head
-                    if not author:
-                        meta_author = page.query_selector("meta[name='author']")
-                        if meta_author:
-                            author = meta_author.get_attribute("content")
-
-                    # If still not found, leave as None
-                    
-                    if title_text and content_text:
-                        post = {
-                            "source": "Anthropic",
-                            "platform": "Website",
-                            "url": full_url,
-                            "title": title_text,
-                            "content": content_text,
-                            "summary": None,
-                            "timestamp": published_date,
-                            "thumbnail": thumbnail,
-                            "author": author
-                        }
-                        posts.append(post)
-                        posts_scraped += 1
-                        print(f" Captured article: {title_text}")
-
-                        # Check if we've reached the post limit
-                        if limit_by_posts and post_limit is not None and posts_scraped >= post_limit:
-                            print(f" Reached post limit of {post_limit}. Stopping.")
-                            break
-                    
-                except Exception as e:
-                    print(f" Error processing article: {str(e)}")
-                    continue
+                # Final fallback: placeholder
+                if not thumbnail:
+                    thumbnail = 'https://placehold.co/64x64?text=No+Image'
                 
-        except Exception as e:
-            print(f" Error during scraping: {str(e)}")
-        finally:
+                # Extract author
+                author = None
+
+                # Try common selectors for author in the article
+                author_selectors = [
+                    "article [class*='author']",
+                    "article .byline",
+                    "article [rel='author']"
+                ]
+                for selector in author_selectors:
+                    author_el = page.query_selector(selector)
+                    if author_el:
+                        author = author_el.inner_text().strip()
+                        break
+
+                # Fallback: meta tag in head
+                if not author:
+                    meta_author = page.query_selector("meta[name='author']")
+                    if meta_author:
+                        author = meta_author.get_attribute("content")
+
+                # If still not found, leave as None
+                
+                if title_text and content_text:
+                    post = {
+                        "source": "Anthropic",
+                        "platform": "Website",
+                        "url": full_url,
+                        "title": title_text,
+                        "content": content_text,
+                        "summary": None,
+                        "timestamp": published_date,
+                        "thumbnail": thumbnail,
+                        "author": author
+                    }
+                    posts.append(post)
+                    posts_scraped += 1
+                    print(f" Captured article: {title_text}")
+
+                    # Check if we've reached the post limit
+                    if limit_by_posts and post_limit is not None and posts_scraped >= post_limit:
+                        print(f" Reached post limit of {post_limit}. Stopping.")
+                        break
+                
+            except Exception as e:
+                print(f" Error processing article: {str(e)}")
+                continue
+            
+    except Exception as e:
+        print(f" Error during scraping: {str(e)}")
+    finally:
+        if page is None:
             browser.close()
     
     # Deduplicate posts by URL before returning

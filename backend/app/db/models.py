@@ -29,9 +29,8 @@ class Post(Base):
             return json.loads(self.tags)
         return []
 
-    def set_tags(self, tags: list):
-        """Set tags from a list"""
-        self.tags = json.dumps(tags) if tags else None
+    def set_tags(self, tags_list):
+        self.tags = json.dumps(tags_list) if tags_list else "[]"
 
 class RssScrapeRun(Base):
     __tablename__ = "rss_scrape_runs"

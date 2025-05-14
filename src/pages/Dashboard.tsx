@@ -157,8 +157,6 @@ function SummarySection() {
 }
 
 // --- Personalized Content Section Types and Logic ---
-const PREFERRED_TOPICS = ["AGI", "Prompt Engineering", "AI Strategy"];
-const PREFERRED_SOURCES = ["OpenAI", "Anthropic", "Hugging Face"];
 
 interface PersonalizedPost {
   post: Post;
@@ -166,12 +164,16 @@ interface PersonalizedPost {
   justification: string;
 }
 
-function computePersonalizedPosts(posts: Post[]): PersonalizedPost[] {
+function computePersonalizedPosts(
+  posts: Post[],
+  preferredTopics: string[],
+  preferredSources: string[]
+): PersonalizedPost[] {
   return posts.map((post) => {
     let score = 1;
     let justification = "No preferred topics or sources matched.";
-    const matchedTopics = post.tags?.filter((tag) => PREFERRED_TOPICS.includes(tag)) || [];
-    const sourceMatch = PREFERRED_SOURCES.includes(post.source);
+    const matchedTopics = post.tags?.filter((tag) => preferredTopics.includes(tag)) || [];
+    const sourceMatch = preferredSources.includes(post.source);
     if (matchedTopics.length > 0) score += 2;
     if (sourceMatch) score += 3;
     if (score > 5) score = 5;
@@ -186,8 +188,8 @@ function computePersonalizedPosts(posts: Post[]): PersonalizedPost[] {
   }).sort((a, b) => b.relevance_score - a.relevance_score);
 }
 
-function PersonalizedContentSection({ posts }: { posts: Post[] }) {
-  const personalized = computePersonalizedPosts(posts).slice(0, 5);
+function PersonalizedContentSection({ posts, preferredTopics, preferredSources }: { posts: Post[], preferredTopics: string[], preferredSources: string[] }) {
+  const personalized = computePersonalizedPosts(posts, preferredTopics, preferredSources).slice(0, 5);
   return (
     <Card className="p-4">
       {personalized.length === 0 ? (
@@ -228,9 +230,6 @@ function PersonalizedContentSection({ posts }: { posts: Post[] }) {
                   <span className="inline-block bg-primary/90 text-white text-xs font-bold px-2 py-1 rounded shadow ml-auto">
                     Score: {relevance_score}
                   </span>
-                  <span className="text-xs text-muted-foreground bg-white/80 rounded px-2 py-1 shadow">
-                    {justification}
-                  </span>
                 </div>
               </div>
             </div>
@@ -249,6 +248,10 @@ export default function Dashboard() {
   // News posts state
   const [news, setNews] = useState<Post[]>([]);
   const [loadingNews, setLoadingNews] = useState(true);
+  // User preferences state
+  const [preferredSources, setPreferredSources] = useState<string[]>([]);
+  const [preferredTopics, setPreferredTopics] = useState<string[]>([]);
+  const [loadingPrefs, setLoadingPrefs] = useState(true);
 
   useEffect(() => {
     // Fetch saved posts
@@ -261,6 +264,14 @@ export default function Dashboard() {
       .then((res) => res.json())
       .then((data) => setNews(data.data?.slice(0, 10) || []))
       .finally(() => setLoadingNews(false));
+    // Fetch user preferences
+    fetch("/api/preferences")
+      .then((res) => res.json())
+      .then((prefs) => {
+        setPreferredSources(prefs.preferred_sources || []);
+        setPreferredTopics(prefs.preferred_categories || []);
+      })
+      .finally(() => setLoadingPrefs(false));
   }, []);
 
   // Convert news posts to NewsArticle format
@@ -298,12 +309,12 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-foreground">Personalized Content</h2>
         </div>
-        {loadingNews ? (
+        {loadingNews || loadingPrefs ? (
           <div>Loading...</div>
         ) : news.length === 0 ? (
           <div className="text-muted-foreground">No personalized posts found.</div>
         ) : (
-          <PersonalizedContentSection posts={news} />
+          <PersonalizedContentSection posts={news} preferredTopics={preferredTopics} preferredSources={preferredSources} />
         )}
       </section>
 

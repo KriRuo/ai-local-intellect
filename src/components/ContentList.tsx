@@ -1,4 +1,4 @@
-import { useRSSFeed, Post } from '@/lib/api';
+import { useRSSFeed } from '@/lib/api';
 import { PostCard } from './PostCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';

@@ -14,6 +14,7 @@ import RssRuns from "./pages/RssRuns";
 import Preferences from "./pages/Preferences";
 import WebFeed from "./pages/WebFeed";
 import SavedContent from "./pages/SavedContent";
+import Dashboard from "./pages/Dashboard";
 
 /**
  * Application root component
@@ -36,12 +37,9 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Layout>
-              <nav className="flex gap-4 p-4 bg-gray-900 text-white">
-                <Link to="/">Feed</Link>
-                <Link to="/saved">Saved Content</Link>
-              </nav>
               <Routes>
-                <Route path="/" element={<Index />} />
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/rss-feed" element={<RssFeed />} />
                 <Route path="/web-feed" element={<WebFeed />} />
                 <Route path="/rss-sources" element={<RssSources />} />

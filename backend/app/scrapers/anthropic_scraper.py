@@ -278,20 +278,35 @@ def scrape_anthropic_news(weeks_back=None, scrape_until_known=False, limit_by_po
                             title_text = title.inner_text().strip()
                             break
 
+                    # Get published date from div after title
+                    published_date = None
+                    date_text = None
+                    date_el = page.query_selector("h1 + div")
+                    if date_el:
+                        date_text = date_el.inner_text().strip()
+                        if '●' in date_text:
+                            date_text_for_parse = date_text.split('●')[0].strip()  # e.g., "24. Feb. 2025"
+                            parsed_date = parse_text_date(date_text_for_parse)
+                            if parsed_date:
+                                published_date = parsed_date.isoformat()
+                                print(f" Found publication date: {published_date}")
+                            else:
+                                print(f" Failed to parse date: {date_text_for_parse}")
+
                     # Get content from article element
                     content_text = ""
                     article = page.query_selector("article")
                     if article:
                         content_text = article.inner_text().strip()
-                        
                         # Remove duplicate title if it appears at the start
                         if title_text and content_text.startswith(title_text):
                             content_text = content_text[len(title_text):].strip()
-                        
+                        # Remove date_text if it appears at the start
+                        if date_text and content_text.startswith(date_text):
+                            content_text = content_text[len(date_text):].strip()
                         # Remove duplicate URL if it appears at the start
                         if content_text.startswith(full_url):
                             content_text = content_text[len(full_url):].strip()
-                        
                         # Remove metadata lines (e.g., "Announcements", "5 min read", etc.)
                         lines = content_text.split('\n')
                         cleaned_lines = []
@@ -307,22 +322,7 @@ def scrape_anthropic_news(weeks_back=None, scrape_until_known=False, limit_by_po
                             if title_text and line == title_text:
                                 continue
                             cleaned_lines.append(line)
-                        
                         content_text = ' '.join(cleaned_lines)
-                    
-                    # Get published date from div after title
-                    published_date = None
-                    date_el = page.query_selector("h1 + div")
-                    if date_el:
-                        date_text = date_el.inner_text().strip()
-                        if '●' in date_text:
-                            date_text = date_text.split('●')[0].strip()  # e.g., "24. Feb. 2025"
-                            parsed_date = parse_text_date(date_text)
-                            if parsed_date:
-                                published_date = parsed_date.isoformat()
-                                print(f" Found publication date: {published_date}")
-                            else:
-                                print(f" Failed to parse date: {date_text}")
                     
                     # Fallback to current time if no date found
                     if not published_date:
@@ -348,12 +348,14 @@ def scrape_anthropic_news(weeks_back=None, scrape_until_known=False, limit_by_po
                     img_tag = page.query_selector("article img")
                     if img_tag:
                         thumbnail = img_tag.get_attribute("src")
+                        thumbnail = clean_thumbnail_url(thumbnail)
 
                     # Fallback: check for og:image meta tag
                     if not thumbnail:
                         og_image = page.query_selector("meta[property='og:image']")
                         if og_image:
                             thumbnail = og_image.get_attribute("content")
+                            thumbnail = clean_thumbnail_url(thumbnail)
 
                     # Final fallback: placeholder
                     if not thumbnail:
@@ -419,6 +421,32 @@ def scrape_anthropic_news(weeks_back=None, scrape_until_known=False, limit_by_po
             unique_posts[post['url']] = post
     return list(unique_posts.values())
 
+def normalize_url(url: str) -> str:
+    """
+    Normalize URL to ensure consistent comparison for duplicate detection.
+    - Removes trailing slashes
+    - Converts to lowercase
+    - Removes common tracking parameters
+    """
+    if not url:
+        return url
+    
+    # Convert to lowercase and remove trailing slash
+    url = url.lower().rstrip('/')
+    
+    # Remove common tracking parameters
+    tracking_params = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content']
+    if '?' in url:
+        base, params = url.split('?', 1)
+        param_dict = dict(param.split('=') for param in params.split('&') if '=' in param)
+        filtered_params = {k: v for k, v in param_dict.items() if k not in tracking_params}
+        if filtered_params:
+            url = f"{base}?{'&'.join(f'{k}={v}' for k, v in filtered_params.items())}"
+        else:
+            url = base
+    
+    return url
+
 def save_posts_to_db(posts: list):
     """
     Save posts to the database, avoiding duplicates by URL.
@@ -434,46 +462,91 @@ def save_posts_to_db(posts: list):
     """
     db = SessionLocal()
     new_posts = 0
-    for post in posts:
-        try:
-            # Ensure timestamp is a datetime object
-            timestamp = post['timestamp']
-            if isinstance(timestamp, str):
-                try:
-                    # Remove 'Z' if present and parse
-                    timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                except Exception:
-                    timestamp = datetime.utcnow()
-            if not db.query(Post).filter_by(url=post['url']).first():
-                db_post = Post(
-                    source=post['source'],
-                    platform=post['platform'],
-                    url=post['url'],
-                    title=post['title'],
-                    content=post['content'],
-                    summary=post.get('summary'),
-                    timestamp=timestamp,
-                    thumbnail=post.get('thumbnail'),
-                    author=post.get('author'),
-                )
-                db.add(db_post)
-                new_posts += 1
-                logging.info(f"Added new post: {post['title']} ({post['url']})")
-            else:
-                logging.info(f"Duplicate post skipped: {post['title']} ({post['url']})")
-        except Exception as e:
-            logging.error(f"Error saving post {post.get('url')}: {str(e)}")
-            continue
+    duplicate_count = 0
+    error_count = 0
+    
     try:
-        db.commit()
-        logging.info(f"Saved {new_posts} new posts to the database (out of {len(posts)} scraped).")
+        # Start a transaction
+        with db.begin():
+            # Normalize URLs and create a set for faster lookup
+            existing_urls = {
+                normalize_url(post.url) 
+                for post in db.query(Post.url).all()
+            }
+            
+            for post in posts:
+                try:
+                    # Normalize the URL for comparison
+                    normalized_url = normalize_url(post['url'])
+                    
+                    # Skip if URL is None or empty
+                    if not normalized_url:
+                        logging.warning(f"Skipping post with empty URL: {post.get('title', 'Unknown')}")
+                        continue
+                    
+                    # Check for duplicates using normalized URL
+                    if normalized_url in existing_urls:
+                        duplicate_count += 1
+                        logging.info(f"Duplicate post skipped: {post['title']} ({post['url']})")
+                        continue
+                    
+                    # Ensure timestamp is a datetime object
+                    timestamp = post['timestamp']
+                    if isinstance(timestamp, str):
+                        try:
+                            # Remove 'Z' if present and parse
+                            timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        except Exception:
+                            timestamp = datetime.utcnow()
+                    
+                    # Create new post
+                    db_post = Post(
+                        source=post['source'],
+                        platform=post['platform'],
+                        url=post['url'],  # Store original URL
+                        title=post['title'],
+                        content=post['content'],
+                        summary=post.get('summary'),
+                        timestamp=timestamp,
+                        thumbnail=post.get('thumbnail'),
+                        author=post.get('author'),
+                    )
+                    db.add(db_post)
+                    new_posts += 1
+                    existing_urls.add(normalized_url)  # Add to set for subsequent checks
+                    logging.info(f"Added new post: {post['title']} ({post['url']})")
+                    
+                except Exception as e:
+                    error_count += 1
+                    logging.error(f"Error saving post {post.get('url')}: {str(e)}")
+                    continue
+            
+            # Log summary
+            logging.info(
+                f"Database update complete. "
+                f"New posts: {new_posts}, "
+                f"Duplicates skipped: {duplicate_count}, "
+                f"Errors: {error_count} "
+                f"(out of {len(posts)} total posts)"
+            )
+            
     except Exception as e:
-        logging.error(f"Error committing posts to database: {str(e)}")
-        db.rollback()
+        logging.error(f"Transaction failed: {str(e)}")
         raise
     finally:
         db.close()
+    
     return new_posts
+
+def clean_thumbnail_url(url, base="https://www.anthropic.com"):
+    if not url:
+        return None
+    url = url.strip()
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+    if url.startswith("/"):
+        return base.rstrip("/") + url
+    return base.rstrip("/") + "/" + url
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the Anthropic news scraper and save to DB.")

@@ -143,7 +143,7 @@ function RSSFilter({ sources, onFilterChange, className = "" }: {
  * 4. Provides retry functionality when loading fails
  * 5. Shows toast notifications for loading success/failure
  */
-export function PostsFeed() {
+export function PostsFeed({ platformFilter }: { platformFilter?: string } = {}) {
   // Zustand store for posts state
   const { posts, isLoadingPosts, postError, setPosts, setIsLoadingPosts, setPostError } = useAppStore();
   const [page, setPage] = useState<number>(1);
@@ -195,16 +195,21 @@ export function PostsFeed() {
     }
   }, [page]);
 
-  // Get unique sources from posts
+  // Filter posts by platform if filter is provided
+  const platformFilteredPosts = platformFilter
+    ? posts.filter((p) => p.platform === platformFilter)
+    : posts;
+
+  // Get unique sources from filtered posts
   const uniqueSources = Array.from(
-    new Set(posts.map((p) => p.source))
+    new Set(platformFilteredPosts.map((p) => p.source))
   ).map((source) => ({ id: source, name: source }));
 
   // Filter posts by selected sources
   const filteredPosts =
     filteredSources.length === 0
-      ? posts
-      : posts.filter((post) => filteredSources.includes(post.source));
+      ? platformFilteredPosts
+      : platformFilteredPosts.filter((post) => filteredSources.includes(post.source));
 
   // Pagination logic
   const totalPages = Math.ceil(filteredPosts.length / POSTS_PER_PAGE);

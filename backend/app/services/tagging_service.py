@@ -10,7 +10,7 @@ from ..db.models import Post
 import logging
 from openai import OpenAI
 import re
-from ..utils.pipeline_logger import PipelineLogger
+from ..utils.tagging_logger import TaggingLogger
 
 load_dotenv()
 
@@ -90,41 +90,31 @@ class TaggingService:
         Returns:
             dict: Statistics about the tagging process, including total processed, successful, and failed counts.
         """
-        logger = PipelineLogger(db)
-        run = logger.start_run(source="tagging_service", run_type="tagging")
-        
+        logger = TaggingLogger()
         try:
             # Get the last N posts that don't have tags yet
             new_posts = db.query(Post).filter(
                 Post.tags == None
             ).order_by(Post.created_at.desc()).limit(batch_size).all()
-            
+
             for post in new_posts:
                 try:
                     tags, category = self.get_tags_and_category(post.content)
                     post.set_tags(tags)
                     post.category = category
-                    logger.log_article_processed(
-                        article={"url": post.url, "title": post.title},
-                        status="success",
-                        stage="tagging"
-                    )
+                    logger.log_processed(status="success")
                     logging.info(f"Tagged post {post.id}: {tags}, {category}")
                 except Exception as e:
                     error_msg = str(e)
-                    logger.log_article_processed(
-                        article={"url": post.url, "title": post.title},
-                        status="error",
-                        stage="tagging",
-                        error_message=error_msg
-                    )
+                    logger.log_processed(status="error", error_message=error_msg)
                     logging.error(f"Error tagging post {post.id}: {error_msg}")
-            
+
             db.commit()
-            logger.end_run(status="completed")
+            logger.print_summary()
             return logger.stats
 
         except Exception as e:
             error_msg = str(e)
-            logger.end_run(status="failed", error_message=error_msg)
+            logger.log_processed(status="error", error_message=error_msg)
+            logger.print_summary()
             raise 

@@ -130,6 +130,7 @@ export function PostCard({
               <img
                 src={post.thumbnail}
                 alt={post.title}
+                onError={(e) => { e.currentTarget.src = 'https://placehold.co/64x64?text=No+Image'; }}
                 className="object-cover h-full w-full rounded-t-lg md:rounded-l-lg md:rounded-t-none transition-transform duration-300 group-hover:scale-105"
               />
             </div>

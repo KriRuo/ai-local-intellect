@@ -12,6 +12,7 @@ import RssFeed from "./pages/RssFeed";
 import RssSources from "./pages/RssSources";
 import RssRuns from "./pages/RssRuns";
 import Preferences from "./pages/Preferences";
+import WebFeed from "./pages/WebFeed";
 
 /**
  * Application root component
@@ -37,6 +38,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/rss-feed" element={<RssFeed />} />
+                <Route path="/web-feed" element={<WebFeed />} />
                 <Route path="/rss-sources" element={<RssSources />} />
                 <Route path="/rss-runs" element={<RssRuns />} />
                 <Route path="/preferences" element={<Preferences />} />

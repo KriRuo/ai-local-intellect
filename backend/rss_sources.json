@@ -503,5 +503,13 @@
         "category": "AI News",
         "source_type": "Company Blog",
         "description": "Official Microsoft Source blog, featuring news, updates, and stories on AI, cloud, and technology."
+    },
+    {
+        "source": "Google Blog",
+        "platform": "RSS",
+        "url": "https://blog.google/rss/",
+        "category": "Tech News",
+        "source_type": "Company Blog",
+        "description": "Official Google Blog RSS feed with company news, updates, and announcements."
     }
 ]

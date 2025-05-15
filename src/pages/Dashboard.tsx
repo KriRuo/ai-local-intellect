@@ -104,7 +104,7 @@ function SavedItem({ item }: { item: SavedPost }) {
           </a>
           {/* Published date (top right) */}
           <span className="text-xs text-muted-foreground ml-4 whitespace-nowrap">
-            {new Date(post.timestamp).toLocaleDateString()} {new Date(post.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            {new Date(post.timestamp).toLocaleDateString()} {new Date(post.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
           </span>
         </div>
         <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
@@ -117,7 +117,7 @@ function SavedItem({ item }: { item: SavedPost }) {
             </Badge>
           ))}
           <span className="text-xs text-muted-foreground ml-auto">
-            Saved {new Date(item.saved_at).toLocaleDateString()} {new Date(item.saved_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            Saved {new Date(item.saved_at).toLocaleDateString()} {new Date(item.saved_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
           </span>
         </div>
       </div>
@@ -189,52 +189,67 @@ function computePersonalizedPosts(
 }
 
 function PersonalizedContentSection({ posts, preferredTopics, preferredSources }: { posts: Post[], preferredTopics: string[], preferredSources: string[] }) {
-  const personalized = computePersonalizedPosts(posts, preferredTopics, preferredSources).slice(0, 5);
+  const [visibleCount, setVisibleCount] = React.useState(10);
+  const personalized = computePersonalizedPosts(posts, preferredTopics, preferredSources);
+  const canLoadMore = visibleCount < personalized.length;
+
   return (
     <Card className="p-4">
       {personalized.length === 0 ? (
         <div className="text-muted-foreground">No personalized content found.</div>
       ) : (
-        <div className="space-y-1">
-          {personalized.map(({ post, relevance_score, justification }) => (
-            <div key={post.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted transition-colors relative">
-              <div className="flex-shrink-0 mt-1">
-                <Bookmark className="h-4 w-4 text-primary" />
+        <>
+          <div className="space-y-1">
+            {personalized.slice(0, visibleCount).map(({ post, relevance_score, justification }) => (
+              <div key={post.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted transition-colors relative">
+                <div className="flex-shrink-0 mt-1">
+                  <Bookmark className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between">
+                    <a
+                      href={post.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium text-blue-600 hover:underline line-clamp-1"
+                    >
+                      {post.title || "Untitled"}
+                    </a>
+                    <span className="text-xs text-muted-foreground ml-4 whitespace-nowrap">
+                      {new Date(post.timestamp).toLocaleDateString()} {new Date(post.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                    {post.summary || post.content?.slice(0, 120) + "..."}
+                  </p>
+                  <div className="text-xs text-muted-foreground mt-1 mb-1">
+                    {post.source}
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    {post.tags && post.tags.length > 0 && post.tags.map((tag) => (
+                      <Badge key={tag} variant="outline" className="text-xs bg-muted/60 border-muted-foreground/20 text-muted-foreground">
+                        {tag}
+                      </Badge>
+                    ))}
+                    <span className="inline-block bg-primary/90 text-white text-xs font-bold px-2 py-1 rounded shadow ml-auto">
+                      Score: {relevance_score}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between">
-                  <a
-                    href={post.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-medium text-blue-600 hover:underline line-clamp-1"
-                  >
-                    {post.title || "Untitled"}
-                  </a>
-                  <span className="text-xs text-muted-foreground ml-4 whitespace-nowrap">
-                    {new Date(post.timestamp).toLocaleDateString()} {new Date(post.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                  {post.summary || post.content?.slice(0, 120) + "..."}
-                </p>
-                <div className="text-xs text-muted-foreground mt-1 mb-1">
-                  {post.source}
-                </div>
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  {post.tags && post.tags.length > 0 && post.tags.map((tag) => (
-                    <Badge key={tag} variant="outline" className="text-xs bg-muted/60 border-muted-foreground/20 text-muted-foreground">
-                      {tag}
-                    </Badge>
-                  ))}
-                  <span className="inline-block bg-primary/90 text-white text-xs font-bold px-2 py-1 rounded shadow ml-auto">
-                    Score: {relevance_score}
-                  </span>
-                </div>
-              </div>
+            ))}
+          </div>
+          {canLoadMore && (
+            <div className="flex justify-center mt-4">
+              <button
+                className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/80 transition"
+                onClick={() => setVisibleCount((c) => c + 10)}
+              >
+                Load More
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </Card>
   );
@@ -252,6 +267,7 @@ export default function Dashboard() {
   const [preferredSources, setPreferredSources] = useState<string[]>([]);
   const [preferredTopics, setPreferredTopics] = useState<string[]>([]);
   const [loadingPrefs, setLoadingPrefs] = useState(true);
+  const [newsVisibleCount, setNewsVisibleCount] = useState(10);
 
   useEffect(() => {
     // Fetch saved posts
@@ -262,7 +278,9 @@ export default function Dashboard() {
     // Fetch most recent posts
     fetch("/api/posts")
       .then((res) => res.json())
-      .then((data) => setNews(data.data?.slice(0, 10) || []))
+      .then((data) => {
+        setNews(data.data || []);
+      })
       .finally(() => setLoadingNews(false));
     // Fetch user preferences
     fetch("/api/preferences")
@@ -275,16 +293,27 @@ export default function Dashboard() {
   }, []);
 
   // Convert news posts to NewsArticle format
-  const newsArticles: NewsArticle[] = news.map((post) => ({
-    id: post.id?.toString() ?? post.url,
-    title: post.title || "Untitled",
-    summary: post.summary || post.content?.slice(0, 120) + "...",
-    date: new Date(post.timestamp).toLocaleDateString() +
-      " " +
-      new Date(post.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    source: post.source,
-    url: post.url,
-  }));
+  const todaysNews = news
+    .filter((post) => {
+      const postDate = new Date(post.timestamp);
+      const now = new Date();
+      return postDate.getFullYear() === now.getFullYear() &&
+        postDate.getMonth() === now.getMonth() &&
+        postDate.getDate() === now.getDate();
+    });
+  const newsArticles: NewsArticle[] = todaysNews
+    .slice(0, newsVisibleCount)
+    .map((post) => ({
+      id: post.id?.toString() ?? post.url,
+      title: post.title || "Untitled",
+      summary: post.summary || post.content?.slice(0, 120) + "...",
+      date: new Date(post.timestamp).toLocaleDateString() +
+        " " +
+        new Date(post.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }),
+      source: post.source,
+      url: post.url,
+    }));
+  const canLoadMoreNews = newsVisibleCount < todaysNews.length;
 
   return (
     <div className="container mx-auto py-6 space-y-8">
@@ -299,7 +328,19 @@ export default function Dashboard() {
           ) : newsArticles.length === 0 ? (
             <div className="text-muted-foreground">No news found.</div>
           ) : (
-            <NewsList articles={newsArticles} />
+            <>
+              <NewsList articles={newsArticles} />
+              {canLoadMoreNews && (
+                <div className="flex justify-center mt-4">
+                  <button
+                    className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/80 transition"
+                    onClick={() => setNewsVisibleCount((c) => c + 10)}
+                  >
+                    Load More
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </Card>
       </section>
@@ -314,7 +355,16 @@ export default function Dashboard() {
         ) : news.length === 0 ? (
           <div className="text-muted-foreground">No personalized posts found.</div>
         ) : (
-          <PersonalizedContentSection posts={news} preferredTopics={preferredTopics} preferredSources={preferredSources} />
+          <PersonalizedContentSection
+            posts={news.filter((post) => {
+              const now = new Date();
+              const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+              const postDate = new Date(post.timestamp);
+              return postDate >= sevenDaysAgo;
+            })}
+            preferredTopics={preferredTopics}
+            preferredSources={preferredSources}
+          />
         )}
       </section>
 

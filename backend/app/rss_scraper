@@ -29,6 +29,7 @@ def clean_content(content: str) -> str:
     Returns:
         str: Cleaned content with HTML removed
     """
+    soup = BeautifulSoup(content, 'html.parser')
     # For now, just return the raw content
     # TODO: Add HTML cleaning if needed
     return content.strip()

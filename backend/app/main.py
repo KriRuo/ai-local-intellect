@@ -287,6 +287,7 @@ def post_to_dict(post):
         "updated_at": post.updated_at.isoformat() if post.updated_at else None,
         "tags": post.get_tags() if hasattr(post, 'get_tags') else [],
         "category": post.category,
+        "tag_status": post.tag_status,
     }
 
 @app.get("/api/posts")
@@ -409,17 +410,53 @@ def export_skipped_sources_markdown(run_id: int, db: Session = Depends(get_db)):
 @app.post("/api/tag-new-posts")
 def tag_new_posts_endpoint(
     batch_size: int = 10,
-    time_window: int = 5,
+    status_filter: str = "pending",
     db: Session = Depends(get_db)
 ):
     """
-    Tag new posts using the Llama 4 Maverick API via TaggingService.
-    - batch_size: number of posts to process per call (default 10)
-    - time_window: number of minutes to look back for new posts (default 5)
-    Returns tagging statistics.
+    Tag posts using the TaggingService.
+    Args:
+        batch_size: Number of posts to process per call (default 10)
+        status_filter: Filter posts by tag_status ("pending" or "error")
+    Returns:
+        dict: Tagging statistics
     """
     tagging_service = TaggingService()
-    stats = tagging_service.tag_new_posts(db, batch_size=batch_size, time_window=time_window)
+    stats = tagging_service.tag_new_posts(
+        db,
+        batch_size=batch_size,
+        status_filter=status_filter
+    )
+    return {"status": "success", "data": stats}
+
+@app.post("/api/retry-failed-tags")
+def retry_failed_tags_endpoint(
+    batch_size: int = 10,
+    db: Session = Depends(get_db)
+):
+    """
+    Retry tagging for posts that previously failed.
+    Args:
+        batch_size: Number of posts to process per call (default 10)
+    Returns:
+        dict: Tagging statistics
+    """
+    tagging_service = TaggingService()
+    stats = tagging_service.retry_failed_tags(db, batch_size=batch_size)
+    return {"status": "success", "data": stats}
+
+@app.get("/api/tagging-stats")
+def get_tagging_stats(db: Session = Depends(get_db)):
+    """
+    Get statistics about post tagging status.
+    Returns:
+        dict: Counts of posts by tag_status
+    """
+    stats = {
+        "pending": db.query(Post).filter(Post.tag_status == "pending").count(),
+        "tagged": db.query(Post).filter(Post.tag_status == "tagged").count(),
+        "error": db.query(Post).filter(Post.tag_status == "error").count(),
+    }
     return {"status": "success", "data": stats}
 
 class PreferencesRequest(BaseModel):

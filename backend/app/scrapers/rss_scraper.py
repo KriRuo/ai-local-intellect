@@ -196,10 +196,7 @@ def save_posts_to_db(db: Session, posts: list):
 
 def scrape_and_save_rss_feed(db: Session, url: str, source: str, platform: str = "RSS"):
     """
-    Scrape posts from an RSS feed and save them to the database. After saving, attempt to tag the
-    newly saved posts using the TaggingService. Tagging errors are caught and logged, and do not
-    prevent posts from being saved or returned. This ensures articles are always available even if
-    tagging fails.
+    Scrape posts from an RSS feed and save them to the database. Tagging is handled separately.
 
     Args:
         db (Session): SQLAlchemy database session
@@ -212,17 +209,6 @@ def scrape_and_save_rss_feed(db: Session, url: str, source: str, platform: str =
     """
     logging.info(f"Starting scrape and save for feed: {source} ({url})")
     posts = scrape_rss_feed(url, source, platform)
-    saved_posts = save_posts_to_db(db, posts)
-    if saved_posts > 0:
-        try:
-            logging.info(f"Attempting to tag {saved_posts} new posts...")
-            from ..services.tagging_service import TaggingService
-            tagging_service = TaggingService()
-            tagging_service.tag_new_posts(db, batch_size=saved_posts)
-            logging.info(f"Successfully tagged {saved_posts} new posts.")
-        except Exception as e:
-            logging.warning(f"Failed to tag new posts, but posts were saved: {str(e)}")
-    else:
-        logging.info("No new posts to tag.")
+    save_posts_to_db(db, posts)
     logging.info(f"Scrape and save complete for feed: {source} ({url})")
     return posts 

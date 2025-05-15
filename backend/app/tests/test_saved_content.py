@@ -1,3 +1,7 @@
+# Test: /api/saved endpoints
+# - Verifies GET /api/saved returns a list of saved posts.
+# - Limitation: Only tests GET, does not test saving or deleting content, or error cases.
+# - Recommendation: Add tests for POST, DELETE, and error handling.
 import pytest
 from fastapi.testclient import TestClient
 from backend.app.main import app

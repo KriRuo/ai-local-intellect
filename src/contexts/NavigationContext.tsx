@@ -1,3 +1,4 @@
+import React from 'react';
 import { createContext, useContext, useState, ReactNode } from 'react';
 
 type Section = 'dashboard' | 'rss' | 'ws';

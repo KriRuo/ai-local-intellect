@@ -38,13 +38,20 @@ The API will be available at http://localhost:8081 (or your configured port).
 
 - `GET /api/posts` — Get all posts
 - `GET /api/rss-sources` — Get all RSS sources
-- `GET /api/rss-runs` — Get recent RSS scrape runs
 - `GET /api/scrape/rss` — Scrape an RSS feed (query params: url, source, platform)
 - `POST /api/scrape/rss/save` — Scrape and save an RSS feed (JSON body)
-- `POST /api/scrape/rss/trigger` — Trigger the RSS scraping script
-- `GET /api/scrape/substack` — Scrape a Substack feed (query param: url)
 - `POST /api/scrape/substack/save` — Scrape and save a Substack feed (JSON body)
+- `POST /api/saved` — Save a post for the user
+- `GET /api/saved` — List saved posts
+- `DELETE /api/saved/{post_id}` — Remove a saved post
 - `GET /health` — Health check endpoint
+
+---
+
+**Not yet implemented (listed for future reference):**
+- `GET /api/rss-runs` — (TODO)
+- `POST /api/scrape/rss/trigger` — (TODO)
+- `GET /api/scrape/substack` — (TODO)
 
 See the FastAPI code in `app/main.py` for full details and request/response formats.
 
@@ -57,4 +64,34 @@ See the FastAPI code in `app/main.py` for full details and request/response form
 
 - The backend will attempt to import all RSS sources from `rss_sources.json` on startup.
 - Logs are written to `backend/app/logs/backend.log`.
-- For development, CORS is enabled for `http://localhost:5173` and `http://localhost:5174`. 
+- For development, CORS is enabled for `http://localhost:5173` and `http://localhost:5174`.
+
+## Backend Test Coverage
+
+Automated tests are provided for the main API endpoints and error handling. All tests are located in `backend/app/tests/` and use `pytest` with FastAPI's TestClient.
+
+**Current Coverage:**
+- `test_health.py`: Tests the /health endpoint for status and response structure.
+- `test_posts.py`: Tests GET /api/posts (empty and not found cases). Stubs for create/update/delete.
+- `test_preferences.py`: Tests GET /api/preferences. Stubs for updating preferences.
+- `test_saved_content.py`: Tests GET /api/saved. Stubs for saving and deleting content.
+- `test_error_handling.py`: Tests 404 error for unknown routes.
+- Additional files cover RSS/web feeds, tagging, scrapers, and models.
+
+**Limitations:**
+- Most tests only cover successful GET requests and basic error cases.
+- No tests for authentication, authorization, or edge cases.
+- Many POST/PUT/DELETE tests are stubbed or commented out.
+- No tests for database migrations or background jobs.
+
+**Recommendations:**
+- Add tests for POST, PUT, DELETE, and PATCH endpoints.
+- Test authentication, authorization, and permission errors.
+- Add tests for edge cases, invalid input, and error handling.
+- Include tests for background jobs, scrapers, and data migrations if applicable.
+
+To run backend tests:
+```sh
+cd backend
+pytest
+``` 

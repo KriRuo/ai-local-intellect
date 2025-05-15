@@ -75,37 +75,32 @@ class TaggingService:
             logging.error(f"Error calling OpenAI API: {str(e)}")
             return [], "Other"
 
-    def tag_new_posts(self, db: Session, batch_size: int = 3) -> dict:
+    def tag_new_posts(self, db: Session, batch_size: int = 3, status_filter: str = "pending") -> dict:
         """
-        Tag the last N posts in the database that do not have tags yet.
-
-        This method is intended for testing and development. It will select the most recent
-        untagged posts (by created_at descending), up to the specified batch_size (default 3),
-        and attempt to tag them using the OpenAI GPT-4 API.
-
-        Parameters:
-            db (Session): SQLAlchemy database session.
-            batch_size (int): Number of posts to process in this batch (default: 3).
-
+        Tag posts in the database based on their tag_status.
+        Args:
+            db (Session): SQLAlchemy database session
+            batch_size (int): Number of posts to process
+            status_filter (str): Filter posts by tag_status ("pending" or "error")
         Returns:
-            dict: Statistics about the tagging process, including total processed, successful, and failed counts.
+            dict: Statistics about the tagging process
         """
         logger = TaggingLogger()
         try:
-            # Get the last N posts that don't have tags yet
-            new_posts = db.query(Post).filter(
-                Post.tags == None
-            ).order_by(Post.created_at.desc()).limit(batch_size).all()
+            # Get posts based on status filter
+            new_posts = db.query(Post).filter(Post.tag_status == status_filter).order_by(Post.created_at.desc()).limit(batch_size).all()
 
             for post in new_posts:
                 try:
                     tags, category = self.get_tags_and_category(post.content)
                     post.set_tags(tags)
                     post.category = category
+                    post.tag_status = "tagged"
                     logger.log_processed(status="success")
                     logging.info(f"Tagged post {post.id}: {tags}, {category}")
                 except Exception as e:
                     error_msg = str(e)
+                    post.tag_status = "error"
                     logger.log_processed(status="error", error_message=error_msg)
                     logging.error(f"Error tagging post {post.id}: {error_msg}")
 
@@ -117,4 +112,15 @@ class TaggingService:
             error_msg = str(e)
             logger.log_processed(status="error", error_message=error_msg)
             logger.print_summary()
-            raise 
+            raise
+
+    def retry_failed_tags(self, db: Session, batch_size: int = 3) -> dict:
+        """
+        Retry tagging for posts that previously failed.
+        Args:
+            db (Session): SQLAlchemy database session
+            batch_size (int): Number of posts to process
+        Returns:
+            dict: Statistics about the retry process
+        """
+        return self.tag_new_posts(db, batch_size=batch_size, status_filter="error") 

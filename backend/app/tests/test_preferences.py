@@ -1,3 +1,7 @@
+# Test: /api/preferences endpoints
+# - Verifies GET /api/preferences returns preferences data.
+# - Limitation: Only tests GET, does not test updating preferences or error cases.
+# - Recommendation: Add tests for POST, error handling, and invalid input.
 import pytest
 from fastapi.testclient import TestClient
 from backend.app.main import app

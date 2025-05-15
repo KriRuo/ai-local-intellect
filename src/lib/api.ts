@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { getApiUrl } from '../utils/env';
 
 /**
  * API communication layer
@@ -24,9 +25,10 @@ export interface Post {
   updated_at?: string;
   tags?: string[];
   category?: string;
+  tag_status?: string; // Tagging flag: pending, tagged, error
 }
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api';
+export const API_BASE_URL = getApiUrl();
 
 /**
  * Fetches AI news articles from the API

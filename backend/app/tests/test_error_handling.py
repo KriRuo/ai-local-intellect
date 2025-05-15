@@ -1,3 +1,7 @@
+# Test: Error handling for unknown routes
+# - Verifies unknown API routes return 404 and an error message.
+# - Limitation: Only tests 404 for unknown routes, does not test other error scenarios or exception handling.
+# - Recommendation: Add tests for other error codes and exception handling.
 import pytest
 from fastapi.testclient import TestClient
 from backend.app.main import app

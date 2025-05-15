@@ -1,7 +1,9 @@
+import React from 'react';
 import { ThemeToggle } from "./ThemeToggle";
 import { Brain } from "lucide-react";
 import { IndustrialSidebar } from "./IndustrialSidebar";
 import { BackendStatusLight } from "./BackendStatusLight";
+import { getApiUrl } from '../utils/env';
 
 /**
  * Layout component provides the main structure of the application.
@@ -42,7 +44,7 @@ export function Layout({ children }: LayoutProps) {
           <div>AI Insight Tracker - A local-first AI news aggregator</div>
           <div className="mt-2 flex items-center justify-center gap-2">
             <BackendStatusLight />
-            <span>Backend: {import.meta.env.VITE_API_URL}</span>
+            <span>Backend: {getApiUrl()}</span>
             <span>Local address: {window.location.origin}</span>
           </div>
         </div>

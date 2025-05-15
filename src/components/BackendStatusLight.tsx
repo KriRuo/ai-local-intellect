@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { getApiUrl } from '../utils/env';
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:8081";
+const BACKEND_URL = getApiUrl() || "http://localhost:8081";
 
 /**
  * BackendStatusLight component displays a colored indicator showing backend API status.

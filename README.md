@@ -186,6 +186,33 @@ See `backend/README.md` for full details and request/response formats.
 - News posts, sources, and chat features rely on backend data.
 - If the backend is offline, the frontend may fall back to mock data or display an error.
 
+## Frontend Test Coverage
+
+The project includes basic smoke tests for the main pages and layout. These tests ensure that the application renders without crashing and that key UI elements are present. All tests are located in `src/_tests_/`.
+
+**Current Coverage:**
+- `App.test.tsx`: Verifies the root App component renders and shows the dashboard by default.
+- `Dashboard.test.tsx`: Checks the Dashboard page renders and displays the "most recent news" heading.
+- `Preferences.test.tsx`: Ensures the Preferences page renders and shows a loading state.
+- `SavedContent.test.tsx`: Confirms the Saved Content page renders and displays the heading.
+- `Layout.test.tsx`: Verifies the Layout component renders its children.
+
+**Limitations:**
+- No tests for user interactions, error states, or edge cases.
+- No unit tests for utility functions or custom hooks.
+- No API mocking or async data loading tests.
+
+**Recommendations:**
+- Add tests for user interactions (e.g., button clicks, form submissions).
+- Test error and empty states.
+- Add unit tests for utility functions and hooks.
+- Mock API calls to test data loading and error handling.
+
+To run the frontend tests:
+```sh
+npm test
+```
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/a341bdf5-2167-49a7-9478-5c23b96be870) and click on Share -> Publish.

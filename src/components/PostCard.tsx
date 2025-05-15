@@ -174,14 +174,6 @@ export function PostCard({
                 <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
                   {post.source}
                 </Badge>
-                {post.tag_status && (
-                  <Badge
-                    variant={post.tag_status === 'tagged' ? 'secondary' : post.tag_status === 'error' ? 'destructive' : 'outline'}
-                    className="text-xs ml-2"
-                  >
-                    {post.tag_status.charAt(0).toUpperCase() + post.tag_status.slice(1)}
-                  </Badge>
-                )}
                 <div className="flex flex-col items-end text-muted-foreground text-xs gap-0.5">
                   <div className="flex items-center gap-1.5">
                     <Clock className="h-3 w-3" />

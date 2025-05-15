@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 from ..db.models import RssScrapeRun, Post, PipelineFailure
+import logging
 
 class PipelineLogger:
     def __init__(self, db: Session):
@@ -16,16 +17,26 @@ class PipelineLogger:
 
     def start_run(self, source: str, run_type: str = 'rss_scrape') -> RssScrapeRun:
         """Start a new pipeline run and return the run object"""
-        self.current_run = RssScrapeRun(
-            started_at=datetime.utcnow(),
-            source=source,
-            run_type=run_type,
-            status="running"
-        )
-        self.db.add(self.current_run)
-        self.db.commit()
-        self.db.refresh(self.current_run)
-        return self.current_run
+        logger = logging.getLogger(__name__)
+        logger.info(f"[PipelineLogger] About to create RssScrapeRun: source={source}, run_type={run_type}")
+        try:
+            self.current_run = RssScrapeRun(
+                started_at=datetime.utcnow(),
+                source=source,
+                run_type=run_type,
+                status="running"
+            )
+            logger.info(f"[PipelineLogger] Created RssScrapeRun object (not committed yet)")
+            self.db.add(self.current_run)
+            logger.info(f"[PipelineLogger] Added RssScrapeRun to session")
+            self.db.commit()
+            logger.info(f"[PipelineLogger] Committed RssScrapeRun to DB")
+            self.db.refresh(self.current_run)
+            logger.info(f"[PipelineLogger] Refreshed RssScrapeRun from DB: id={self.current_run.id}")
+            return self.current_run
+        except Exception as e:
+            logger.error(f"[PipelineLogger] Exception in start_run: {e}", exc_info=True)
+            raise
 
     def log_article_processed(self, article: Dict[str, Any], status: str, stage: str, error_message: Optional[str] = None):
         """Log the processing of a single article at a specific stage"""

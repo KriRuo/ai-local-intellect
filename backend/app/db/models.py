@@ -46,6 +46,8 @@ class RssScrapeRun(Base):
     status = Column(String, default="completed")  # completed, failed, running
     error_message = Column(String, nullable=True)
     skipped_sources_details = Column(Text, nullable=True)  # JSON: [{source, url, reason}] 
+    source = Column(String, nullable=True)
+    run_type = Column(String, nullable=True)
 
 class UserPreferences(Base):
     __tablename__ = "user_preferences"

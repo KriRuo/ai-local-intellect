@@ -16,11 +16,11 @@ load_dotenv()
 
 class TaggingService:
     def __init__(self):
-        self.api_key = os.getenv("ChatGPT_API_KEY")
+        self.api_key = os.getenv("ChatGPT_API_KEY") or os.getenv("VITE_ChatGPT_API_KEY")
         self.org_id = os.getenv("OPENAI_ORG_ID")  # Optional
         self.project_id = os.getenv("OPENAI_PROJECT_ID")  # Optional
         if not self.api_key:
-            raise ValueError("ChatGPT_API_KEY not found in environment variables")
+            raise ValueError("ChatGPT_API_KEY or VITE_ChatGPT_API_KEY not found in environment variables")
         self.client = OpenAI(
             api_key=self.api_key,
             organization=self.org_id,

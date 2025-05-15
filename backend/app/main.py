@@ -19,6 +19,7 @@ import atexit
 import time
 import signal
 import queue
+from .utils.pipeline_logger import PipelineLogger
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -544,4 +545,102 @@ def delete_saved_post(post_id: int, db: Session = Depends(get_db)):
     for saved in saved_posts:
         db.delete(saved)
     db.commit()
-    return {"detail": "Deleted"} 
+    return {"detail": "Deleted"}
+
+def run_full_pipeline(db: Session):
+    """
+    Orchestrate the full pipeline: scrape all RSS feeds, then tag new posts.
+    Returns a summary of both steps.
+    """
+    logger.info("Starting full pipeline: scrape all RSS feeds, then tag new posts.")
+    summary = {"scraping": {}, "tagging": {}, "errors": []}
+    try:
+        pipeline_logger = PipelineLogger(db)
+        run = pipeline_logger.start_run(source="pipeline", run_type="full_pipeline")
+        logger.info(f"Pipeline run started with id: {run.id}")
+    except Exception as e:
+        logger.error(f"Failed to start pipeline run: {e}", exc_info=True)
+        raise
+
+    try:
+        # Scrape all RSS feeds
+        rss_sources_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rss_sources.json')
+        if not os.path.exists(rss_sources_path):
+            pipeline_logger.end_run(status="error", error_message="rss_sources.json not found")
+            raise HTTPException(status_code=404, detail="rss_sources.json not found")
+        with open(rss_sources_path, 'r', encoding='utf-8') as f:
+            feeds = json.load(f)
+        imported_count = 0
+        skipped_count = 0
+        failed_count = 0
+        failed_feeds = []
+        for feed in feeds:
+            url = feed.get('url')
+            source = feed.get('source')
+            platform = feed.get('platform', 'RSS')
+            article = {"url": url, "source": source, "platform": platform}
+            if not url or not source:
+                logger.warning(f"Skipped feed due to missing url or source: {feed}")
+                skipped_count += 1
+                pipeline_logger.log_article_processed(article, status="skipped", stage="scraping", error_message="Missing url or source")
+                continue
+            logger.info(f"Fetching RSS feed: {source} ({url}) ...")
+            try:
+                from .scrapers import rss_scraper
+                rss_scraper.scrape_and_save_rss_feed(db, url, source, platform)
+                logger.info(f"Saved feed: {source} ({url})")
+                imported_count += 1
+                pipeline_logger.log_article_processed(article, status="success", stage="scraping")
+            except Exception as e:
+                logger.warning(f"Failed to import {source} ({url}): {e}")
+                failed_count += 1
+                failed_feeds.append({"source": source, "url": url, "error": str(e)})
+                pipeline_logger.log_article_processed(article, status="error", stage="scraping", error_message=str(e))
+        summary["scraping"] = {
+            "imported": imported_count,
+            "skipped": skipped_count,
+            "failed": failed_count,
+            "total": len(feeds),
+            "failed_feeds": failed_feeds
+        }
+    except Exception as e:
+        logger.error(f"Pipeline scraping step failed: {e}")
+        summary["errors"].append(f"Scraping step failed: {str(e)}")
+        pipeline_logger.end_run(status="error", error_message=str(e))
+        logger.info(f"Pipeline run with id {run.id} ended with error.")
+        return {"status": "error", "summary": summary}
+
+    try:
+        # Tag new posts
+        from .services.tagging_service import TaggingService
+        tagging_service = TaggingService()
+        tagging_stats = tagging_service.tag_new_posts(db, batch_size=1000, status_filter="pending")
+        summary["tagging"] = tagging_stats
+        pipeline_logger.end_run(status="completed")
+        logger.info(f"Pipeline run with id {run.id} completed successfully.")
+    except Exception as e:
+        logger.error(f"Pipeline tagging step failed: {e}")
+        summary["errors"].append(f"Tagging step failed: {str(e)}")
+        pipeline_logger.end_run(status="error", error_message=str(e))
+        logger.info(f"Pipeline run with id {run.id} ended with error.")
+        return {"status": "error", "summary": summary}
+
+    logger.info("Pipeline completed successfully.")
+    return {"status": "success", "summary": summary}
+
+@app.post("/api/pipeline/refresh-all")
+def refresh_all_pipeline(db: Session = Depends(get_db)):
+    logger.info("[refresh_all_pipeline] Entered endpoint.")
+    if db is None:
+        logger.error("[refresh_all_pipeline] DB session is None!")
+    else:
+        logger.info("[refresh_all_pipeline] DB session received.")
+    logger.info("[refresh_all_pipeline] About to instantiate PipelineLogger.")
+    try:
+        pipeline_logger = PipelineLogger(db)
+        logger.info("[refresh_all_pipeline] PipelineLogger instantiated.")
+    except Exception as e:
+        logger.error(f"[refresh_all_pipeline] Failed to instantiate PipelineLogger: {e}", exc_info=True)
+        raise
+    # Call the actual pipeline logic
+    return run_full_pipeline(db) 

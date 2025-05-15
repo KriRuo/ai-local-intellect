@@ -39,6 +39,19 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(isinstance(response.json(), list))
 
+    def test_pipeline_refresh_all(self):
+        """Test the /api/pipeline/refresh-all endpoint returns expected structure."""
+        response = client.post("/api/pipeline/refresh-all")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("status", data)
+        self.assertIn("summary", data)
+        summary = data["summary"]
+        self.assertIn("scraping", summary)
+        self.assertIn("tagging", summary)
+        # Accept both success and error status
+        self.assertIn(data["status"], ["success", "error"])
+
     # Add more endpoint tests as needed, e.g. POST/DELETE, error cases, etc.
 
 if __name__ == "__main__":

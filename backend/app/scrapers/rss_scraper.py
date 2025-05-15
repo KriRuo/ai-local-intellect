@@ -12,7 +12,7 @@ from typing import List, Dict
 from time import mktime
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
-from backend.app.db.models import Post
+from ..db.models import Post
 import logging
 
 class RSSFeedError(Exception):

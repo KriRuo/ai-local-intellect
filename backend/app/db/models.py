@@ -88,4 +88,14 @@ class SavedPost(Base):
     post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
     saved_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    post = relationship("Post")
+
+class ArticleSummary(Base):
+    __tablename__ = "article_summaries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
+    summary = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
     post = relationship("Post") 

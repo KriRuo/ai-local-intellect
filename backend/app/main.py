@@ -20,6 +20,12 @@ import time
 import signal
 import queue
 from .utils.pipeline_logger import PipelineLogger
+from .services.lm_studio_client import LMStudioClient
+import asyncio
+from backend.app.services.article_fetch_service import ArticleFetchService
+from backend.app.services.article_summarization_service import ArticleSummarizationService
+from backend.app.services.summary_storage_service import SummaryStorageService
+from backend.app.services.article_batch_summarization_service import ArticleBatchSummarizationService
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -53,6 +59,17 @@ logger = logging.getLogger(__name__)
 running = True
 input_queue = queue.Queue()
 
+# Initialize the LM Studio client
+lm_client = LMStudioClient()
+
+# Initialize new services
+article_fetch_service = ArticleFetchService(SessionLocal())
+article_summarization_service = ArticleSummarizationService(lm_client)
+summary_storage_service = SummaryStorageService(SessionLocal())
+batch_summarization_service = ArticleBatchSummarizationService(
+    article_fetch_service, article_summarization_service, summary_storage_service
+)
+
 def signal_handler(signum, frame):
     global running
     running = False
@@ -65,6 +82,8 @@ def cleanup():
     global running
     running = False
     logger.info("Cleaning up resources...")
+    # Add this line to close the LM Studio client
+    asyncio.run(lm_client.close())
 
 atexit.register(cleanup)
 
@@ -180,6 +199,7 @@ logger.info("🚀 FastAPI backend is starting up...")
 # Remove the automatic RSS feed importing code and add a new endpoint
 @app.post("/api/scrape/rss/import-all")
 def import_all_rss_feeds(db: Session = Depends(get_db)):
+    logger.info("POST /api/scrape/rss/import-all called")
     """
     Import all RSS feeds defined in rss_sources.json
     """
@@ -242,6 +262,7 @@ class RSSRequest(BaseModel):
 
 @app.get("/api/scrape/rss")
 async def scrape_rss(url: str, source: str, platform: str = "RSS"):
+    logger.info("GET /api/scrape/rss called")
     """
     Scrape posts from an RSS feed without saving them.
     """
@@ -254,6 +275,7 @@ async def scrape_rss(url: str, source: str, platform: str = "RSS"):
 
 @app.post("/api/scrape/rss/save")
 def scrape_and_save_rss(req: RSSRequest, db: Session = Depends(get_db)):
+    logger.info("POST /api/scrape/rss/save called")
     """
     Scrape posts from an RSS feed and save them to the database.
     """
@@ -293,6 +315,7 @@ def post_to_dict(post):
 
 @app.get("/api/posts")
 def get_posts(db: Session = Depends(get_db)):
+    logger.info("GET /api/posts called")
     posts = db.query(Post).order_by(Post.timestamp.desc()).all()
     logging.info(f"Fetched {len(posts)} posts from the database.")
     if posts:
@@ -307,6 +330,7 @@ def get_posts(db: Session = Depends(get_db)):
 
 @app.post("/api/scrape/rss/trigger")
 def trigger_rss_scraper():
+    logger.info("POST /api/scrape/rss/trigger called")
     try:
         subprocess.Popen([sys.executable, "-m", "backend.app.run_rss_scraper"])
         return {"status": "started", "message": "RSS scraping script triggered."}
@@ -315,6 +339,7 @@ def trigger_rss_scraper():
 
 @app.get("/api/rss-sources")
 def get_rss_sources():
+    logger.info("GET /api/rss-sources called")
     """
     Get the list of available RSS sources from rss_sources.json
     """
@@ -327,6 +352,7 @@ def get_rss_sources():
 
 @app.get("/api/rss-runs")
 def get_rss_runs(db: Session = Depends(get_db)):
+    logger.info("GET /api/rss-runs called")
     try:
         logging.info("📥 /api/rss-runs endpoint was called")
         runs = db.query(RssScrapeRun).order_by(RssScrapeRun.started_at.desc()).limit(50).all()
@@ -351,6 +377,7 @@ def get_rss_runs(db: Session = Depends(get_db)):
 
 @app.get("/api/scrape/substack")
 async def scrape_substack(url: str):
+    logger.info("GET /api/scrape/substack called")
     try:
         articles = substack_scraper.scrape_substack_articles(url)
         return {"status": "success", "data": articles}
@@ -362,6 +389,7 @@ def scrape_and_save_substack(
     url: str,
     db: Session = Depends(get_db)
 ):
+    logger.info("POST /api/scrape/substack/save called")
     try:
         posts = substack_scraper.scrape_and_save_substack(db, url)
         return {"status": "success", "data": [
@@ -385,10 +413,12 @@ def scrape_and_save_substack(
 
 @app.get("/health")
 def health_check():
+    logger.info("GET /health called")
     return {"status": "ok"}
 
 @app.get("/api/rss-runs/{run_id}/skipped-sources-md", response_class=PlainTextResponse)
 def export_skipped_sources_markdown(run_id: int, db: Session = Depends(get_db)):
+    logger.info(f"GET /api/rss-runs/{run_id}/skipped-sources-md called")
     run = db.query(RssScrapeRun).filter(RssScrapeRun.id == run_id).first()
     if not run:
         raise HTTPException(status_code=404, detail="RSS run not found")
@@ -414,6 +444,7 @@ def tag_new_posts_endpoint(
     status_filter: str = "pending",
     db: Session = Depends(get_db)
 ):
+    logger.info("POST /api/tag-new-posts called")
     """
     Tag posts using the TaggingService.
     Args:
@@ -435,6 +466,7 @@ def retry_failed_tags_endpoint(
     batch_size: int = 10,
     db: Session = Depends(get_db)
 ):
+    logger.info("POST /api/retry-failed-tags called")
     """
     Retry tagging for posts that previously failed.
     Args:
@@ -448,6 +480,7 @@ def retry_failed_tags_endpoint(
 
 @app.get("/api/tagging-stats")
 def get_tagging_stats(db: Session = Depends(get_db)):
+    logger.info("GET /api/tagging-stats called")
     """
     Get statistics about post tagging status.
     Returns:
@@ -471,6 +504,7 @@ class PreferencesResponse(BaseModel):
 # --- USER PREFERENCES ENDPOINTS ---
 @app.get("/api/preferences", response_model=PreferencesResponse)
 def get_preferences(db: Session = Depends(get_db)):
+    logger.info("GET /api/preferences called")
     prefs = db.query(UserPreferences).get(1)
     if not prefs:
         # Return empty preferences if not set
@@ -485,6 +519,7 @@ def set_preferences(
     req: PreferencesRequest = Body(...),
     db: Session = Depends(get_db)
 ):
+    logger.info("POST /api/preferences called")
     prefs = db.query(UserPreferences).get(1)
     if not prefs:
         prefs = UserPreferences(id=1)
@@ -508,6 +543,7 @@ class SavedPostResponse(BaseModel):
 
 @app.post("/api/saved", response_model=SavedPostResponse)
 def save_post(req: SavedPostRequest, db: Session = Depends(get_db)):
+    logger.info("POST /api/saved called")
     post = db.query(Post).filter(Post.id == req.post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -524,6 +560,7 @@ def save_post(req: SavedPostRequest, db: Session = Depends(get_db)):
 
 @app.get("/api/saved", response_model=List[SavedPostResponse])
 def get_saved_posts(db: Session = Depends(get_db)):
+    logger.info("GET /api/saved called")
     saved_posts = db.query(SavedPost).order_by(SavedPost.saved_at.desc()).all()
     result = []
     for saved in saved_posts:
@@ -539,6 +576,7 @@ def get_saved_posts(db: Session = Depends(get_db)):
 
 @app.delete("/api/saved/{post_id}")
 def delete_saved_post(post_id: int, db: Session = Depends(get_db)):
+    logger.info(f"DELETE /api/saved/{post_id} called")
     saved_posts = db.query(SavedPost).filter(SavedPost.post_id == post_id).all()
     if not saved_posts:
         raise HTTPException(status_code=404, detail="Saved post not found")
@@ -630,6 +668,7 @@ def run_full_pipeline(db: Session):
 
 @app.post("/api/pipeline/refresh-all")
 def refresh_all_pipeline(db: Session = Depends(get_db)):
+    logger.info("POST /api/pipeline/refresh-all called")
     logger.info("[refresh_all_pipeline] Entered endpoint.")
     if db is None:
         logger.error("[refresh_all_pipeline] DB session is None!")
@@ -643,4 +682,57 @@ def refresh_all_pipeline(db: Session = Depends(get_db)):
         logger.error(f"[refresh_all_pipeline] Failed to instantiate PipelineLogger: {e}", exc_info=True)
         raise
     # Call the actual pipeline logic
-    return run_full_pipeline(db) 
+    return run_full_pipeline(db)
+
+# Add these new models after the other model definitions
+class SummaryRequest(BaseModel):
+    text: str
+    max_tokens: int = 150
+
+class PromptRequest(BaseModel):
+    prompt: str
+    system_prompt: str = None
+
+# Add these new endpoints before the health check endpoint
+@app.post("/api/lm/summarize")
+async def summarize_text(request: SummaryRequest):
+    logger.info("POST /api/lm/summarize called")
+    try:
+        summary = await lm_client.generate_summary(request.text, request.max_tokens)
+        return {"summary": summary}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/test-alive")
+def test_alive():
+    logger.info("GET /test-alive called")
+    return {"status": "alive"} 
+
+@app.post("/api/lm/generate")
+async def generate_response(request: PromptRequest):
+    logger.info("POST /api/lm/generate called")
+    try:
+        response = await lm_client.generate_response(
+            request.prompt,
+            request.system_prompt
+        )
+        return {"response": response}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class SummarizationRequest(BaseModel):
+    sources: List[str]
+    start_date: str  # YYYY-MM-DD
+    end_date: str    # YYYY-MM-DD
+
+@app.post("/api/lm/summarize-articles")
+async def summarize_articles(request: SummarizationRequest):
+    logger.info("POST /api/lm/summarize-articles called")
+    try:
+        summaries = await batch_summarization_service.summarize_articles(
+            request.sources, request.start_date, request.end_date
+        )
+        return {"summaries": summaries}
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "trace": traceback.format_exc()}

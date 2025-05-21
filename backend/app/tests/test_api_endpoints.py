@@ -88,4 +88,25 @@ def test_invalid_route():
     assert response.status_code == 404
     assert "detail" in response.json()
 
-# Add more tests for authentication, authorization, and edge cases as needed. 
+# Add more tests for authentication, authorization, and edge cases as needed.
+
+# ------------------- Summary Service Endpoint -------------------
+def test_summarize_endpoint():
+    """Test POST /api/lm/summarize returns a summary for a realistic article payload."""
+    payload = {
+        "text": (
+            "Source: OpenAI Blog\n"
+            "URL: https://openai.com/blog/new-model\n"
+            "Publish Date: 2024-06-01T00:00:00Z\n"
+            "Title: OpenAI Releases New Model\n"
+            "Content: OpenAI has released a new model that improves performance on language tasks...\n"
+            "Author: OpenAI Team"
+        ),
+        "max_tokens": 100
+    }
+    response = client.post("/api/lm/summarize", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "summary" in data
+    assert isinstance(data["summary"], str)
+    assert len(data["summary"]) > 0 

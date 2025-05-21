@@ -10,6 +10,24 @@ import { getApiUrl } from '../utils/env';
  * Using relative paths allows deployment flexibility without hardcoding domains
  */
 
+/**
+ * Represents a news post/article fetched from the API or RSS feeds.
+ * @property id - Unique identifier for the post (optional).
+ * @property source - The source or publisher of the post.
+ * @property platform - The platform type (e.g., Blog, RSS).
+ * @property url - The URL to the original post.
+ * @property title - The title of the post (optional).
+ * @property content - The full content of the post.
+ * @property summary - A summary of the post (optional).
+ * @property timestamp - The publication timestamp (ISO string).
+ * @property thumbnail - URL to a thumbnail image (optional).
+ * @property author - The author of the post (optional).
+ * @property created_at - Creation timestamp (optional).
+ * @property updated_at - Last update timestamp (optional).
+ * @property tags - List of tags associated with the post (optional).
+ * @property category - Category of the post (optional).
+ * @property tag_status - Tagging status: pending, tagged, or error (optional).
+ */
 export interface Post {
   id?: number;
   source: string;
@@ -31,8 +49,9 @@ export interface Post {
 export const API_BASE_URL = getApiUrl();
 
 /**
- * Fetches AI news articles from the API
- * Falls back to mock data if the API request fails
+ * Fetches AI news articles from the API.
+ * Attempts to fetch from the remote API, falls back to localStorage cache, and finally mock data if all else fails.
+ * @returns Promise resolving to an array of Post objects.
  */
 export async function fetchPosts(): Promise<Post[]> {
   try {
@@ -132,8 +151,10 @@ export async function fetchPosts(): Promise<Post[]> {
 }
 
 /**
- * Sends a user question to the AI assistant and returns the response
- * Falls back to a polite offline message if the API request fails
+ * Sends a user question to the AI assistant and returns the response.
+ * If the API is unavailable, returns a polite offline message.
+ * @param message - The user's question to send to the assistant.
+ * @returns Promise resolving to the assistant's response as a string.
  */
 export async function sendChatMessage(message: string): Promise<string> {
   try {
@@ -157,6 +178,13 @@ export async function sendChatMessage(message: string): Promise<string> {
   }
 }
 
+/**
+ * React Query hook to fetch and cache posts from a given RSS feed URL.
+ * @param url - The RSS feed URL.
+ * @param source - The source or publisher name.
+ * @param platform - The platform type (default: 'RSS').
+ * @returns React Query result containing an array of Post objects.
+ */
 export const useRSSFeed = (url: string, source: string, platform: string = 'RSS') => {
   return useQuery<Post[]>({
     queryKey: ['rss', url, source, platform],
@@ -177,6 +205,13 @@ export const useRSSFeed = (url: string, source: string, platform: string = 'RSS'
   });
 };
 
+/**
+ * Imports an RSS feed by sending its details to the backend for scraping and saving.
+ * @param url - The RSS feed URL.
+ * @param source - The source or publisher name.
+ * @param platform - The platform type (default: 'RSS').
+ * @returns Promise resolving to the backend response.
+ */
 export async function importRssFeed(url: string, source: string, platform: string = "RSS") {
   const response = await fetch(`${API_BASE_URL}/scrape/rss/save`, {
     method: "POST",

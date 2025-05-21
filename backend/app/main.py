@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, Body
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Optional
 from .scrapers import rss_scraper, substack_scraper
-from .db.models import Base, Post, RssScrapeRun, UserPreferences, SavedPost
+from .db.models import Base, Post, RssScrapeRun, UserPreferences, SavedPost, Note
 from .db.database import engine, get_db, SessionLocal
 from sqlalchemy.orm import Session
 import logging
@@ -20,12 +20,14 @@ import time
 import signal
 import queue
 from .utils.pipeline_logger import PipelineLogger
-from .services.lm_studio_client import LMStudioClient
+from .services.openai_client import OpenAIClient
 import asyncio
 from backend.app.services.article_fetch_service import ArticleFetchService
 from backend.app.services.article_summarization_service import ArticleSummarizationService
 from backend.app.services.summary_storage_service import SummaryStorageService
 from backend.app.services.article_batch_summarization_service import ArticleBatchSummarizationService
+import traceback
+from datetime import datetime
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -59,8 +61,8 @@ logger = logging.getLogger(__name__)
 running = True
 input_queue = queue.Queue()
 
-# Initialize the LM Studio client
-lm_client = LMStudioClient()
+# Initialize the OpenAI client (replace LM Studio client)
+lm_client = OpenAIClient()
 
 # Initialize new services
 article_fetch_service = ArticleFetchService(SessionLocal())
@@ -245,6 +247,13 @@ def import_all_rss_feeds(db: Session = Depends(get_db)):
     }
 
 class RSSRequest(BaseModel):
+    """
+    Request model for submitting an RSS feed to be scraped and/or saved.
+    Attributes:
+        url: The RSS feed URL.
+        source: The source or publisher name.
+        platform: The platform type (default: 'RSS').
+    """
     url: str
     source: str
     platform: str = "RSS"
@@ -494,10 +503,22 @@ def get_tagging_stats(db: Session = Depends(get_db)):
     return {"status": "success", "data": stats}
 
 class PreferencesRequest(BaseModel):
+    """
+    Request model for setting user preferences.
+    Attributes:
+        preferred_sources: List of preferred news sources.
+        preferred_categories: List of preferred news categories.
+    """
     preferred_sources: list[str]
     preferred_categories: list[str]
 
 class PreferencesResponse(BaseModel):
+    """
+    Response model for returning user preferences.
+    Attributes:
+        preferred_sources: List of preferred news sources.
+        preferred_categories: List of preferred news categories.
+    """
     preferred_sources: list[str]
     preferred_categories: list[str]
 
@@ -533,9 +554,22 @@ def set_preferences(
     )
 
 class SavedPostRequest(BaseModel):
+    """
+    Request model for saving a post.
+    Attributes:
+        post_id: The ID of the post to save.
+    """
     post_id: int
 
 class SavedPostResponse(BaseModel):
+    """
+    Response model for a saved post.
+    Attributes:
+        id: Unique identifier for the saved post record.
+        post_id: The ID of the original post.
+        saved_at: ISO timestamp when the post was saved.
+        post: Dictionary representation of the saved post.
+    """
     id: int
     post_id: int
     saved_at: str
@@ -724,15 +758,130 @@ class SummarizationRequest(BaseModel):
     sources: List[str]
     start_date: str  # YYYY-MM-DD
     end_date: str    # YYYY-MM-DD
+    combined: bool = False
 
 @app.post("/api/lm/summarize-articles")
 async def summarize_articles(request: SummarizationRequest):
-    logger.info("POST /api/lm/summarize-articles called")
+    logger.info(f"/api/lm/summarize-articles called with: sources={request.sources}, start_date={request.start_date}, end_date={request.end_date}, combined={request.combined}")
     try:
-        summaries = await batch_summarization_service.summarize_articles(
-            request.sources, request.start_date, request.end_date
-        )
-        return {"summaries": summaries}
+        if request.combined:
+            logger.info("Calling summarize_articles_combined (single grouped summary)")
+            # Fetch articles for logging
+            all_posts = []
+            for source in request.sources:
+                posts = batch_summarization_service.fetch_service.fetch_articles(source, request.start_date, request.end_date)
+                all_posts.extend(posts)
+            logger.info(f"Fetched {len(all_posts)} articles for combined summary.")
+            for idx, post in enumerate(all_posts, 1):
+                logger.info(f"Article {idx}: Title='{getattr(post, 'title', '')}', Source='{getattr(post, 'source', '')}', Date='{getattr(post, 'timestamp', '')}'")
+            # Build the prompt for logging (same as in summarize_articles_combined)
+            prompt_lines = []
+            for idx, post in enumerate(all_posts, 1):
+                prompt_lines.append(f"Article {idx}:")
+                prompt_lines.append(f"Source: {getattr(post, 'source', '')}")
+                prompt_lines.append(f"URL: {getattr(post, 'url', '')}")
+                prompt_lines.append(f"Publish Date: {getattr(post, 'timestamp', '')}")
+                prompt_lines.append(f"Title: {getattr(post, 'title', '')}")
+                prompt_lines.append(f"Content: {getattr(post, 'content', '')}")
+                prompt_lines.append(f"Author: {getattr(post, 'author', '')}")
+                prompt_lines.append("")
+            prompt = "\n".join(prompt_lines)
+            logger.info(f"Combined prompt sent to model:\n{prompt}")
+            summary = await batch_summarization_service.summarize_articles_combined(
+                request.sources, request.start_date, request.end_date
+            )
+            return {"summary": summary}
+        else:
+            logger.info("Calling summarize_articles (per-article summaries)")
+            # Fetch articles for logging
+            all_posts = []
+            for source in request.sources:
+                posts = batch_summarization_service.fetch_service.fetch_articles(source, request.start_date, request.end_date)
+                all_posts.extend(posts)
+            logger.info(f"Fetched {len(all_posts)} articles for per-article summaries.")
+            for idx, post in enumerate(all_posts, 1):
+                logger.info(f"Article {idx}: Title='{getattr(post, 'title', '')}', Source='{getattr(post, 'source', '')}', Date='{getattr(post, 'timestamp', '')}'")
+            summaries = await batch_summarization_service.summarize_articles(
+                request.sources, request.start_date, request.end_date
+            )
+            return {"summaries": summaries}
     except Exception as e:
-        import traceback
         return {"error": str(e), "trace": traceback.format_exc()}
+
+class NoteCreate(BaseModel):
+    title: str
+    description: str = None
+
+class NoteUpdate(BaseModel):
+    title: str = None
+    description: str = None
+
+class NoteResponse(BaseModel):
+    id: int
+    title: str
+    description: str = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
+class NotesListResponse(BaseModel):
+    status: str
+    data: List[NoteResponse]
+
+    class Config:
+        from_attributes = True
+
+@app.get("/api/notes", response_model=NotesListResponse)
+def get_notes(db: Session = Depends(get_db)):
+    logger.info("GET /api/notes called")
+    try:
+        notes = db.query(Note).order_by(Note.created_at.desc()).all()
+        return {"status": "success", "data": [NoteResponse.from_orm(n) for n in notes]}
+    except Exception as e:
+        logger.error(f"Error fetching notes: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/notes/{note_id}", response_model=NoteResponse)
+def get_note(note_id: int, db: Session = Depends(get_db)):
+    note = db.query(Note).filter(Note.id == note_id).first()
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return note
+
+@app.post("/api/notes", response_model=NoteResponse)
+def create_note(note: NoteCreate, db: Session = Depends(get_db)):
+    try:
+        db_note = Note(title=note.title, description=note.description)
+        db.add(db_note)
+        db.commit()
+        db.refresh(db_note)
+        return db_note
+    except Exception as e:
+        logger.error(f"Error creating note: {e}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/notes/{note_id}", response_model=NoteResponse)
+def update_note(note_id: int, note_update: NoteUpdate, db: Session = Depends(get_db)):
+    db_note = db.query(Note).filter(Note.id == note_id).first()
+    if not db_note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    if note_update.title is not None:
+        db_note.title = note_update.title
+    if note_update.description is not None:
+        db_note.description = note_update.description
+    db.commit()
+    db.refresh(db_note)
+    return db_note
+
+@app.delete("/api/notes/{note_id}")
+def delete_note(note_id: int, db: Session = Depends(get_db)):
+    db_note = db.query(Note).filter(Note.id == note_id).first()
+    if not db_note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    db.delete(db_note)
+    db.commit()
+    return {"message": "Note deleted successfully"}

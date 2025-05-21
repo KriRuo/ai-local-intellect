@@ -15,6 +15,9 @@ import Preferences from "./pages/Preferences";
 import WebFeed from "./pages/WebFeed";
 import SavedContent from "./pages/SavedContent";
 import Dashboard from "./pages/Dashboard";
+import Notes from "@/pages/Notes";
+import NoteDetail from "@/pages/NoteDetail";
+import NoteEdit from "@/pages/NoteEdit";
 
 /**
  * Application root component
@@ -46,6 +49,10 @@ const App = () => (
                 <Route path="/rss-runs" element={<RssRuns />} />
                 <Route path="/preferences" element={<Preferences />} />
                 <Route path="/saved" element={<SavedContent />} />
+                <Route path="/notes" element={<Notes />} />
+                <Route path="/notes/new" element={<NoteEdit mode="create" />} />
+                <Route path="/notes/:id" element={<NoteDetail />} />
+                <Route path="/notes/:id/edit" element={<NoteEdit mode="edit" />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

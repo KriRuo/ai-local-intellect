@@ -123,6 +123,11 @@ export function IndustrialSidebar() {
           href: "/web-feed",
           icon: <Globe className="h-4 w-4" />,
         },
+        {
+          label: "Notes",
+          href: "/notes",
+          icon: <FileText className="h-4 w-4" />,
+        },
       ],
     },
     {

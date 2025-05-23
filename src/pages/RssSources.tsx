@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ExternalLink, Pencil } from "lucide-react";
+import { ExternalLink, Pencil, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -261,6 +261,29 @@ const RssSources = () => {
     setBulkLoading(false);
   };
 
+  const handleExport = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/rss-sources`);
+      const data = await res.json();
+      if (data.status === "success") {
+        const jsonStr = JSON.stringify(data.data, null, 2);
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "rss_sources_export.json";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 0);
+      }
+    } catch (err) {
+      // Optionally show an error toast or message
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -417,6 +440,9 @@ const RssSources = () => {
               </form>
             </DialogContent>
           </Dialog>
+          <Button variant="outline" onClick={handleExport} title="Export RSS Sources">
+            <Download className="h-4 w-4 mr-2" /> Export
+          </Button>
         </div>
       </div>
       <div>

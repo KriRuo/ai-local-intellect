@@ -511,5 +511,13 @@
         "category": "Tech News",
         "source_type": "Company Blog",
         "description": "Official Google Blog RSS feed with company news, updates, and announcements."
+    },
+    {
+        "source": "AI Trends",
+        "url": "https://www.aitrends.com/feed/",
+        "platform": "RSS",
+        "category": "AI News",
+        "description": " AI Trends - The Best Source for AI News and Events RSS feed\nAI Trends is the leading industry media channel focused on the business and technology of AI. It is designed to keep executives ahead of the curve.",
+        "source_type": "Blog"
     }
 ]

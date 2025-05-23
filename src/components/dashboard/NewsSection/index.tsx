@@ -1,14 +1,28 @@
+// NewsSection displays the most recent news articles for today, fetched from the API.
+// It allows users to load more articles incrementally.
+
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { NewsList } from './NewsList';
 import { Post, NewsArticle } from '../types';
 
+/**
+ * NewsSection component
+ * Fetches and displays today's news articles, with incremental loading.
+ *
+ * Data is fetched from /api/posts and filtered to only include articles from today.
+ * Uses NewsList to render the list of articles.
+ */
 export function NewsSection() {
+  // State for all news posts
   const [news, setNews] = useState<Post[]>([]);
+  // Loading state for news
   const [loadingNews, setLoadingNews] = useState(true);
+  // Number of visible news articles
   const [newsVisibleCount, setNewsVisibleCount] = useState(10);
 
   useEffect(() => {
+    // Fetch all news posts from the API
     fetch("/api/posts")
       .then((res) => res.json())
       .then((data) => {
@@ -17,6 +31,7 @@ export function NewsSection() {
       .finally(() => setLoadingNews(false));
   }, []);
 
+  // Filter news to only include today's articles
   const todaysNews = news.filter((post) => {
     const postDate = new Date(post.timestamp);
     const now = new Date();
@@ -25,6 +40,7 @@ export function NewsSection() {
       postDate.getDate() === now.getDate();
   });
 
+  // Map posts to NewsArticle shape for display
   const newsArticles: NewsArticle[] = todaysNews
     .slice(0, newsVisibleCount)
     .map((post) => ({
@@ -38,6 +54,7 @@ export function NewsSection() {
       url: post.url,
     }));
 
+  // Whether there are more articles to load
   const canLoadMoreNews = newsVisibleCount < todaysNews.length;
 
   return (

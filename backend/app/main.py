@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Body
+from fastapi import FastAPI, HTTPException, Depends, Body, Path, Request
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Optional
 from .scrapers import rss_scraper, substack_scraper
@@ -9,7 +9,7 @@ import logging
 import os
 import json
 import subprocess
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from .scrapers.rss_scraper import RSSFeedError, InvalidFeedURLError, FeedParsingError, NoEntriesFoundError
 import sys
 from fastapi.responses import PlainTextResponse
@@ -28,6 +28,7 @@ from backend.app.services.summary_storage_service import SummaryStorageService
 from backend.app.services.article_batch_summarization_service import ArticleBatchSummarizationService
 import traceback
 from datetime import datetime
+import feedparser
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -885,3 +886,129 @@ def delete_note(note_id: int, db: Session = Depends(get_db)):
     db.delete(db_note)
     db.commit()
     return {"message": "Note deleted successfully"}
+
+class RSSSourceRequest(BaseModel):
+    source: str = Field(..., description="Name of the source")
+    url: str = Field(..., description="RSS feed URL")
+    platform: str = Field("RSS", description="Platform type (default: RSS)")
+    category: str = Field(None, description="Category of the source")
+    description: str = Field(None, description="Description of the source")
+    source_type: str = Field(None, description="Type of source (e.g., Industry, Academic)")
+
+@app.post("/api/rss-sources")
+def add_rss_source(req: RSSSourceRequest):
+    """
+    Add a new RSS source to rss_sources.json after validating the feed URL.
+    """
+    logger.info(f"POST /api/rss-sources called with: {req}")
+    # Validate the RSS feed URL
+    try:
+        feed = feedparser.parse(req.url)
+        if feed.bozo:
+            raise HTTPException(status_code=400, detail=f"Invalid RSS feed: {feed.bozo_exception}")
+        if not hasattr(feed, 'entries') or not feed.entries:
+            raise HTTPException(status_code=400, detail="No entries found in the RSS feed.")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse RSS feed: {str(e)}")
+
+    # Load existing sources
+    rss_sources_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rss_sources.json')
+    if not os.path.exists(rss_sources_path):
+        raise HTTPException(status_code=404, detail="rss_sources.json not found")
+    with open(rss_sources_path, 'r', encoding='utf-8') as f:
+        sources = json.load(f)
+    # Check for duplicate URL
+    if any(s.get('url') == req.url for s in sources):
+        raise HTTPException(status_code=400, detail="This RSS feed URL is already in the sources list.")
+    # Append new source
+    new_source = req.dict(exclude_none=True)
+    sources.append(new_source)
+    with open(rss_sources_path, 'w', encoding='utf-8') as f:
+        json.dump(sources, f, indent=4, ensure_ascii=False)
+    logger.info(f"Added new RSS source: {new_source}")
+    return {"status": "success", "data": new_source}
+
+@app.put("/api/rss-sources/{url}")
+def update_rss_source(
+    url: str = Path(..., description="Current URL of the RSS source to update"),
+    req: RSSSourceRequest = Body(...)
+):
+    """
+    Update an existing RSS source in rss_sources.json.
+    If the URL is changed, validate the new URL and check for duplicates.
+    """
+    logger.info(f"PUT /api/rss-sources/{url} called with: {req}")
+    rss_sources_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rss_sources.json')
+    if not os.path.exists(rss_sources_path):
+        raise HTTPException(status_code=404, detail="rss_sources.json not found")
+    with open(rss_sources_path, 'r', encoding='utf-8') as f:
+        sources = json.load(f)
+    # Find the source by current URL
+    idx = next((i for i, s in enumerate(sources) if s.get('url') == url), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail="RSS source not found.")
+    # If URL is changed, check for duplicate and validate new feed
+    if req.url != url:
+        if any(s.get('url') == req.url for s in sources):
+            raise HTTPException(status_code=400, detail="This new RSS feed URL is already in the sources list.")
+        try:
+            feed = feedparser.parse(req.url)
+            if feed.bozo:
+                raise HTTPException(status_code=400, detail=f"Invalid RSS feed: {feed.bozo_exception}")
+            if not hasattr(feed, 'entries') or not feed.entries:
+                raise HTTPException(status_code=400, detail="No entries found in the RSS feed.")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to parse RSS feed: {str(e)}")
+    # Update the source
+    sources[idx] = req.dict(exclude_none=True)
+    with open(rss_sources_path, 'w', encoding='utf-8') as f:
+        json.dump(sources, f, indent=4, ensure_ascii=False)
+    logger.info(f"Updated RSS source: {sources[idx]}")
+    return {"status": "success", "data": sources[idx]}
+
+@app.post("/api/rss-sources/bulk-import")
+async def bulk_import_rss_sources(request: Request):
+    """
+    Bulk import RSS sources from a JSON array. Each source must match the RSSSourceRequest schema.
+    Returns a summary of added, skipped, and errored sources.
+    """
+    logger.info("POST /api/rss-sources/bulk-import called")
+    rss_sources_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rss_sources.json')
+    if not os.path.exists(rss_sources_path):
+        raise HTTPException(status_code=404, detail="rss_sources.json not found")
+    with open(rss_sources_path, 'r', encoding='utf-8') as f:
+        sources = json.load(f)
+    existing_urls = {s.get('url') for s in sources}
+    try:
+        data = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}")
+    if not isinstance(data, list):
+        raise HTTPException(status_code=400, detail="Input must be a JSON array of sources.")
+    added = 0
+    skipped = 0
+    errors = []
+    for idx, item in enumerate(data):
+        try:
+            # Validate required fields
+            src = RSSSourceRequest(**item)
+            # Check for duplicate
+            if src.url in existing_urls:
+                skipped += 1
+                continue
+            # Validate RSS feed URL
+            feed = feedparser.parse(src.url)
+            if feed.bozo:
+                raise Exception(f"Invalid RSS feed: {feed.bozo_exception}")
+            if not hasattr(feed, 'entries') or not feed.entries:
+                raise Exception("No entries found in the RSS feed.")
+            # Add to sources
+            sources.append(src.dict(exclude_none=True))
+            existing_urls.add(src.url)
+            added += 1
+        except Exception as e:
+            errors.append({"index": idx, "source": item, "error": str(e)})
+    with open(rss_sources_path, 'w', encoding='utf-8') as f:
+        json.dump(sources, f, indent=4, ensure_ascii=False)
+    logger.info(f"Bulk import complete. Added: {added}, Skipped: {skipped}, Errors: {len(errors)}")
+    return {"status": "success", "added": added, "skipped": skipped, "errors": errors}

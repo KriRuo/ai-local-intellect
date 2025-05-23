@@ -9,18 +9,30 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 
+/**
+ * SummarySection component
+ * Allows the user to generate a summary of news articles from selected sources and date range.
+ * Fetches available sources from /api/rss-sources and sends summary requests to /api/lm/summarize-articles.
+ */
 const SummarySection: React.FC = () => {
+  // Dialog open state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  // List of available news sources
   const [availableSources, setAvailableSources] = useState<string[]>([]);
+  // User-selected sources
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  // Date range for summary
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
-    from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+    from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Default: last 7 days
     to: new Date()
   });
+  // Summary text
   const [summary, setSummary] = useState<string | null>(null);
+  // Loading state for summary generation
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    // Fetch available RSS sources for selection
     fetch('/api/rss-sources')
       .then(res => res.json())
       .then(data => {
@@ -30,6 +42,11 @@ const SummarySection: React.FC = () => {
       });
   }, []);
 
+  /**
+   * Handles changes to the selected sources (including 'All').
+   * @param source Source name or 'All'
+   * @param checked Whether the source is selected
+   */
   const handleSourceChange = (source: string, checked: boolean) => {
     if (source === "All") {
       setSelectedSources(checked ? ["All", ...availableSources] : []);
@@ -44,10 +61,15 @@ const SummarySection: React.FC = () => {
     }
   };
 
+  // The sources to send to the summary API
   const sourcesToSend = selectedSources.includes("All")
     ? availableSources
     : selectedSources;
 
+  /**
+   * Sends a request to generate a summary for the selected sources and date range.
+   * Handles API errors and updates summary state.
+   */
   const handleGenerateSummary = async () => {
     setIsLoading(true);
     try {

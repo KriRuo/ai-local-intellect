@@ -5,19 +5,30 @@ import { Badge } from '@/components/ui/badge';
 import { Bookmark } from 'lucide-react';
 import { Post, PersonalizedPost } from '../types';
 
+/**
+ * Computes personalized posts by scoring each post based on user preferences.
+ * - Adds points for matching preferred topics and sources.
+ * - Returns posts sorted by relevance score (descending).
+ * @param posts List of posts to score
+ * @param preferredTopics User's preferred topics
+ * @param preferredSources User's preferred sources
+ * @returns Array of PersonalizedPost with score and justification
+ */
 function computePersonalizedPosts(
   posts: Post[],
   preferredTopics: string[],
   preferredSources: string[]
 ): PersonalizedPost[] {
   return posts.map((post) => {
-    let score = 1;
+    let score = 1; // Base score
     let justification = "No preferred topics or sources matched.";
+    // Check for topic and source matches
     const matchedTopics = post.tags?.filter((tag) => preferredTopics.includes(tag)) || [];
     const sourceMatch = preferredSources.includes(post.source);
     if (matchedTopics.length > 0) score += 2;
     if (sourceMatch) score += 3;
-    if (score > 5) score = 5;
+    if (score > 5) score = 5; // Cap score
+    // Build justification string
     if (matchedTopics.length > 0 && sourceMatch) {
       justification = `Matches preferred topic '${matchedTopics[0]}' and source '${post.source}'.`;
     } else if (matchedTopics.length > 0) {
@@ -29,14 +40,26 @@ function computePersonalizedPosts(
   }).sort((a, b) => b.relevance_score - a.relevance_score);
 }
 
+/**
+ * Props for PersonalizedContentSection
+ * @property posts List of posts to personalize
+ * @property preferredTopics User's preferred topics
+ * @property preferredSources User's preferred sources
+ */
 interface Props {
   posts: Post[];
   preferredTopics: string[];
   preferredSources: string[];
 }
 
+/**
+ * PersonalizedContentSection component
+ * Displays posts personalized to the user's preferences, sorted by relevance.
+ * Allows incremental loading of more posts.
+ */
 const PersonalizedContentSection: React.FC<Props> = ({ posts, preferredTopics, preferredSources }) => {
   const [visibleCount, setVisibleCount] = useState(10);
+  // Compute personalized posts based on preferences
   const personalized = computePersonalizedPosts(posts, preferredTopics, preferredSources);
   const canLoadMore = visibleCount < personalized.length;
 

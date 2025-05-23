@@ -4,6 +4,10 @@ import { Badge } from '@/components/ui/badge';
 import { Bookmark } from 'lucide-react';
 import { SavedPost } from '../types';
 
+/**
+ * Renders a single saved post item.
+ * @param item The saved post to display
+ */
 function SavedItem({ item }: { item: SavedPost }) {
   const post = item.post;
   return (
@@ -43,6 +47,10 @@ function SavedItem({ item }: { item: SavedPost }) {
   );
 }
 
+/**
+ * Renders a list of saved post items.
+ * @param items Array of saved posts
+ */
 function SavedList({ items }: { items: SavedPost[] }) {
   return (
     <div className="space-y-1">
@@ -53,11 +61,20 @@ function SavedList({ items }: { items: SavedPost[] }) {
   );
 }
 
+/**
+ * Props for SavedSection
+ * @property saved Array of saved posts
+ * @property loadingSaved Loading state for saved posts
+ */
 interface Props {
   saved: SavedPost[];
   loadingSaved: boolean;
 }
 
+/**
+ * SavedSection component
+ * Displays the user's saved posts, or a loading/empty state.
+ */
 const SavedSection: React.FC<Props> = ({ saved, loadingSaved }) => {
   return (
     <>

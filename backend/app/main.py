@@ -37,7 +37,7 @@ app = FastAPI(title="AI Local Intellect Scraper API")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],  # Allow both dev ports
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5175"],  # Allow both dev ports and specified frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

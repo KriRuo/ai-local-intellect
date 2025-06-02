@@ -29,6 +29,10 @@ export default function Dashboard() {
       .then((prefs) => {
         setPreferredSources(prefs.preferred_sources || []);
         setPreferredTopics(prefs.preferred_categories || []);
+        console.log('Loaded preferences:', {
+          preferred_sources: prefs.preferred_sources,
+          preferred_categories: prefs.preferred_categories
+        });
       })
       .finally(() => setLoadingPrefs(false));
   }, []);

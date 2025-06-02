@@ -4,40 +4,114 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Bookmark } from 'lucide-react';
 import { Post, PersonalizedPost } from '../types';
+import { validatePost } from '@/utils/validation';
+import { logger } from '@/lib/logger';
+import { SCORING } from '@/constants/scoring';
 
 /**
- * Computes personalized posts by scoring each post based on user preferences.
- * - Adds points for matching preferred topics and sources.
- * - Returns posts sorted by relevance score (descending).
- * @param posts List of posts to score
- * @param preferredTopics User's preferred topics
- * @param preferredSources User's preferred sources
- * @returns Array of PersonalizedPost with score and justification
+ * Custom error for post validation failures
  */
-function computePersonalizedPosts(
+class PostValidationError extends Error {
+  constructor(message: string, public post: Post) {
+    super(message);
+    this.name = 'PostValidationError';
+  }
+}
+
+/**
+ * Calculates a relevance score for a post based on user preferences
+ * @param post - The post to score
+ * @param preferredTopics - User's preferred topics
+ * @param preferredSources - User's preferred sources
+ * @returns Object containing score and justification
+ * @throws {PostValidationError} If post data is invalid
+ */
+function calculatePostScore(
+  post: Post, 
+  preferredTopics: string[], 
+  preferredSources: string[]
+): { score: number, justification: string } {
+  if (!validatePost(post)) {
+    throw new PostValidationError('Invalid post data', post);
+  }
+  let score = SCORING.BASE_SCORE;
+  const matchedTopics = post.tags?.filter((tag) => preferredTopics.includes(tag)) || [];
+  const sourceMatch = preferredSources.includes(post.source);
+  
+  if (matchedTopics.length > 0) score += SCORING.TOPIC_MATCH_BONUS;
+  if (sourceMatch) score += SCORING.SOURCE_MATCH_BONUS;
+  
+  return { 
+    score, 
+    justification: buildJustification(matchedTopics, post.source, sourceMatch)
+  };
+}
+
+/**
+ * Builds a human-readable justification for the post's score
+ */
+function buildJustification(
+  matchedTopics: string[], 
+  source: string, 
+  sourceMatch: boolean
+): string {
+  if (matchedTopics.length > 0 && sourceMatch) {
+    return `Matches preferred topic '${matchedTopics[0]}' and source '${source}'.`;
+  }
+  if (matchedTopics.length > 0) {
+    return `Matches preferred topic '${matchedTopics[0]}'.`;
+  }
+  if (sourceMatch) {
+    return `Matches preferred source '${source}'.`;
+  }
+  return "No preferred topics or sources matched.";
+}
+
+/**
+ * Computes personalized posts by scoring and sorting them based on user preferences
+ * @param posts - List of posts to personalize
+ * @param preferredTopics - User's preferred topics
+ * @param preferredSources - User's preferred sources
+ * @returns Sorted array of personalized posts
+ */
+export function computePersonalizedPosts(
   posts: Post[],
   preferredTopics: string[],
   preferredSources: string[]
 ): PersonalizedPost[] {
-  return posts.map((post) => {
-    let score = 1; // Base score
-    let justification = "No preferred topics or sources matched.";
-    // Check for topic and source matches
-    const matchedTopics = post.tags?.filter((tag) => preferredTopics.includes(tag)) || [];
-    const sourceMatch = preferredSources.includes(post.source);
-    if (matchedTopics.length > 0) score += 2;
-    if (sourceMatch) score += 3;
-    if (score > 5) score = 5; // Cap score
-    // Build justification string
-    if (matchedTopics.length > 0 && sourceMatch) {
-      justification = `Matches preferred topic '${matchedTopics[0]}' and source '${post.source}'.`;
-    } else if (matchedTopics.length > 0) {
-      justification = `Matches preferred topic '${matchedTopics[0]}'.`;
-    } else if (sourceMatch) {
-      justification = `Matches preferred source '${post.source}'.`;
+  try {
+    const scoredPosts = posts.map(post => {
+      try {
+        const { score, justification } = calculatePostScore(
+          post, 
+          preferredTopics, 
+          preferredSources
+        );
+        return { post, relevance_score: score, justification };
+      } catch (error) {
+        if (error instanceof PostValidationError) {
+          logger.warn('Invalid post skipped:', error.post);
+          return { 
+            post, 
+            relevance_score: SCORING.BASE_SCORE, 
+            justification: "Invalid post data" 
+          };
+        }
+        throw error;
+      }
+    });
+
+    const sortedPosts = scoredPosts.sort((a, b) => b.relevance_score - a.relevance_score);
+
+    if (process.env.NODE_ENV === 'development' && sortedPosts.length > 0) {
+      logger.debug('Highest scoring post:', sortedPosts[0]);
     }
-    return { post, relevance_score: score, justification };
-  }).sort((a, b) => b.relevance_score - a.relevance_score);
+
+    return sortedPosts;
+  } catch (error) {
+    logger.error('Error computing personalized posts:', error);
+    return [];
+  }
 }
 
 /**
